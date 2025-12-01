@@ -1610,6 +1610,22 @@
                     return indexA - indexB;
                 });
             
+            // Debug: Log pivoted rows for Connecticut
+            if (selectedState === 'Connecticut') {
+                const ctRows = sortedRows.filter(row => row.state === 'Connecticut');
+                console.log('Connecticut rows to display:', {
+                    totalRows: ctRows.length,
+                    rows: ctRows.map(r => ({
+                        state: r.state,
+                        metric: r.metric,
+                        loans2022: r.year2022.loans,
+                        loans2023: r.year2023.loans,
+                        loans2024: r.year2024.loans
+                    }))
+                });
+                console.log('All pivoted keys:', Object.keys(pivoted).filter(k => k.includes('Connecticut')));
+            }
+            
             sortedRows.forEach(row => {
                 // In state view, rows are not clickable - use dropdown to filter by state
                 // In national view, show just the metric; in state view, show state and metric
