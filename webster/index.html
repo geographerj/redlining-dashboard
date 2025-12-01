@@ -1350,18 +1350,20 @@
 
         // Render state view with aggregated state-level metrics
         function renderStateView(data) {
-            // Aggregate to state level
-            const stateAggregated = aggregateToStateLevel(data);
+            // If no state selected, aggregate to national level; otherwise aggregate to state level
+            const isNationalView = !selectedState;
+            const aggregated = isNationalView ? aggregateToNationalLevel(data) : aggregateToStateLevel(data);
             
-            // Pivot by state, metric with years as columns (aggregate across loan purposes)
+            // Pivot by metric (and state if state view) with years as columns (aggregate across loan purposes)
             const pivoted = {};
             
-            stateAggregated.forEach(item => {
-                const key = `${item.state}||${item.metric}`;
+            aggregated.forEach(item => {
+                // For national view, key is just metric; for state view, key includes state
+                const key = isNationalView ? item.metric : `${item.state}||${item.metric}`;
                 
                 if (!pivoted[key]) {
                     pivoted[key] = {
-                        state: item.state,
+                        state: isNationalView ? 'National' : item.state,
                         metric: item.metric,
                         year2022: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
                         year2023: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
@@ -1477,7 +1479,8 @@
             const bankName = bankMetadata?.bank || 'Frost Bank';
             
             let html = '<div class="data-table-container">';
-            html += '<h2 class="table-title">State-Level Analysis - Aggregated Metrics</h2>';
+            const viewTitle = isNationalView ? 'National-Level Analysis - Aggregated Metrics' : 'State-Level Analysis - Aggregated Metrics';
+            html += `<h2 class="table-title">${viewTitle}</h2>`;
             html += `<div style="font-size: 1rem; color: var(--dark-blue); font-weight: 600; margin-bottom: 1rem; padding: 0.5rem; background: #f0f4f8; border-left: 4px solid var(--sky-blue); border-radius: 4px;">`;
             html += `${bankName} - Total ${kindText} (${purposeText}): <span style="color: var(--dark-blue);">${totalLoansForGeography.toLocaleString()}</span> `;
             html += `(2022: ${year2022Count.toLocaleString()}, 2023: ${year2023Count.toLocaleString()}, 2024: ${year2024Count.toLocaleString()})`;
@@ -1509,8 +1512,13 @@
             
             sortedRows.forEach(row => {
                 // In state view, rows are not clickable - use dropdown to filter by state
+                // In national view, show just the metric; in state view, show state and metric
                 html += `<tr>`;
-                html += `<td><strong>${row.metric}</strong></td>`;
+                if (isNationalView) {
+                    html += `<td><strong>${row.metric}</strong></td>`;
+                } else {
+                    html += `<td><strong>${row.state} - ${row.metric}</strong></td>`;
+                }
                 
                 // Year columns - show Bank %, Peer %, Ratio/Gap, and Damages for each year
                 [2022, 2023, 2024].forEach(year => {

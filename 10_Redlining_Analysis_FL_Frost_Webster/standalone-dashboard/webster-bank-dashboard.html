@@ -1,0 +1,2647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Webster Bank - Redlining Analysis Dashboard</title>
+    <!-- SheetJS library for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --sky-blue: #2fade3;
+            --dark-blue: #034ea0;
+            --red: #e82e2e;
+            --gold: #ffc23a;
+            --gray: #818390;
+            --green: #C6EFCE;
+            --white: #FFFFFF;
+            --black: #000000;
+            --purple: #552d87;
+            --pink: #eb2f89;
+        }
+
+        body {
+            font-family: Calibri, Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--dark-blue) 0%, var(--sky-blue) 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header .subtitle {
+            opacity: 0.9;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header .bank-info {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            opacity: 0.85;
+        }
+
+        header .bank-info-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        header .bank-info-label {
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        header .bank-info-value {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 0.5px;
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .breadcrumb-item {
+            color: var(--dark-blue);
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: background 0.2s;
+            font-weight: 500;
+        }
+
+        .breadcrumb-item:hover {
+            background: #f0f0f0;
+        }
+
+        .breadcrumb-separator {
+            color: var(--gray);
+        }
+
+        .breadcrumb-item.active {
+            color: var(--gray);
+            cursor: default;
+        }
+
+        .breadcrumb-item.active:hover {
+            background: transparent;
+        }
+
+        .filter-box {
+            background: white;
+            padding: 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
+        }
+
+        .filter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .filter-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--dark-blue);
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-grid-row2 {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .filter-group {
+            min-width: 0; /* Prevent overflow */
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* Use a single geography filter container that swaps content */
+        .geography-filter-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            min-height: 80px; /* Reserve space to prevent layout shift - accommodate tallest content */
+        }
+        
+        .geography-filter-container .filter-content {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .geography-filter-container .filter-content.hidden {
+            display: none;
+        }
+
+        .filter-group-label {
+            font-weight: 600;
+            color: var(--dark-blue);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.25rem;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-select {
+            padding: 0.5rem;
+            border: 1px solid var(--sky-blue);
+            border-radius: 4px;
+            background: white;
+            color: var(--dark-blue);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .filter-select:hover {
+            border-color: var(--dark-blue);
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--dark-blue);
+            box-shadow: 0 0 0 2px rgba(3, 78, 160, 0.1);
+        }
+
+        .metrics-filter-group {
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        
+        .metrics-filter-group .metrics-container {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-start !important;
+            gap: 1rem !important;
+            flex-wrap: nowrap !important;
+            width: 100% !important;
+            margin-top: 0.5rem !important;
+            overflow: hidden !important;
+        }
+        
+        .metrics-grid {
+            display: grid !important;
+            grid-template-columns: repeat(4, minmax(170px, 1fr)) !important;
+            gap: 0.5rem;
+            max-height: 120px;
+            overflow-y: auto;
+            overflow-x: hidden !important;
+            padding: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            width: 100% !important;
+        }
+
+        .metrics-grid label {
+            font-size: 0.85rem;
+        }
+
+        .filter-button {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--sky-blue);
+            border-radius: 4px;
+            background: white;
+            color: var(--dark-blue);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .filter-button:hover {
+            background: var(--sky-blue);
+            color: white;
+        }
+
+        .filter-button.active {
+            background: var(--sky-blue);
+            color: white;
+        }
+
+        .metric-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .metric-checkbox input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .metric-checkbox label {
+            cursor: pointer;
+            font-size: 0.85rem;
+            user-select: none;
+        }
+
+        .switcher-section {
+            background: #f0f4f8;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .switcher-label {
+            font-weight: 600;
+            color: var(--dark-blue);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+            display: block;
+        }
+
+        .switcher-buttons {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        .switcher-button {
+            padding: 0.35rem 0.7rem;
+            border: 1px solid var(--sky-blue);
+            border-radius: 4px;
+            background: white;
+            color: var(--dark-blue);
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .switcher-button:hover {
+            background: var(--sky-blue);
+            color: white;
+        }
+
+        .switcher-button.active {
+            background: var(--sky-blue);
+            color: white;
+            font-weight: 600;
+        }
+
+        .data-table-container {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .table-title {
+            font-size: 1.5rem;
+            color: var(--dark-blue);
+            margin-bottom: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        thead {
+            background: var(--dark-blue);
+            color: white;
+        }
+        
+        thead tr:hover {
+            background: var(--dark-blue) !important;
+        }
+
+        th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            user-select: none;
+            position: relative;
+            white-space: nowrap;
+        }
+        
+        th:hover {
+            background: var(--dark-blue) !important;
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        tbody tr:hover {
+            background: #f9f9f9;
+        }
+
+        tr.clickable {
+            cursor: pointer;
+        }
+
+        tr.clickable:hover {
+            background: #f0f7ff;
+        }
+
+        .ratio-cell {
+            font-weight: 600;
+            text-align: center;
+            padding: 0.5rem;
+            border-radius: 4px;
+            min-width: 60px;
+        }
+
+        /* Text colors for negative and positive values */
+        .value-negative { 
+            color: red !important; 
+        }
+        .value-positive { 
+            color: #2fade3 !important; 
+        }
+        /* Ensure text color shows even with background colors on ratio cells */
+        .ratio-cell.value-negative {
+            color: red !important;
+        }
+        .ratio-cell.value-positive {
+            color: #2fade3 !important;
+        }
+
+        .ratio-excellent { background: var(--green); }
+        .ratio-good { background: var(--gold); }
+        .ratio-warning { background: var(--gold); }
+        .ratio-poor { background: var(--red); color: white; }
+        .ratio-severe { background: var(--red); color: white; }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray);
+            font-size: 1.2rem;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            border-left: 4px solid var(--red);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--gray);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .back-button {
+            padding: 0.5rem 1rem;
+            background: var(--gray);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .back-button:hover {
+            background: var(--dark-blue);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .filter-box {
+                padding: 1rem;
+            }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .metrics-grid {
+                grid-template-columns: 1fr;
+                max-height: 200px;
+            }
+
+            table {
+                font-size: 0.85rem;
+            }
+
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Webster Bank - Redlining Analysis Dashboard</h1>
+        <div class="subtitle">HMDA Lending Analysis | San Antonio, TX</div>
+        <div class="bank-info" id="bankInfo">
+            <div class="bank-info-item">
+                <span class="bank-info-label">LEI:</span>
+                <span class="bank-info-value" id="bankLEI">Loading...</span>
+            </div>
+            <div class="bank-info-item">
+                <span class="bank-info-label">RSSD:</span>
+                <span class="bank-info-value" id="bankRSSD">Loading...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="breadcrumb" id="breadcrumb">
+            <span class="breadcrumb-item" onclick="navigateToLevel('home')">Home</span>
+        </div>
+
+        <div class="filter-box" id="filterBox">
+            <div class="filter-header">
+                <div class="filter-title">Filters & Options</div>
+                <div class="filter-actions">
+                    <button class="filter-button" onclick="exportToExcel()" style="background: var(--sky-blue); color: white; margin-right: 0.5rem;">
+                        Export to Excel
+                    </button>
+                    <button class="filter-button" onclick="resetAllFilters()" style="background: #f0f0f0; color: #666;">
+                        Reset All
+                    </button>
+                </div>
+            </div>
+            
+            <div class="filter-grid">
+                <div class="filter-group geography-filter-container">
+                    <div class="filter-group-label" id="geographyLabel">Geography</div>
+                    <div class="filter-content hidden" id="stateFilterContent">
+                        <select class="filter-select" id="stateSelect" onchange="handleStateChange(this.value)">
+                            <option value="">All States</option>
+                        </select>
+                    </div>
+                    <div class="filter-content hidden" id="cbsaFilterContent">
+                        <select class="filter-select" id="cbsaSelect" onchange="handleCBSAChange(this.value)">
+                            <option value="">Select CBSA</option>
+                        </select>
+                    </div>
+                    <div class="filter-content hidden" id="countyFilterContent">
+                        <select class="filter-select" id="countySelect" onchange="handleCountyChange(this.value)">
+                            <option value="">Select County</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-group-label">Loan Purpose</div>
+                    <div class="filter-buttons">
+                        <button class="filter-button active" onclick="setLoanPurpose('All Loans')" id="loanPurposeAll">All Loans</button>
+                        <button class="filter-button" onclick="setLoanPurpose('Home Purchase')" id="loanPurposePurchase">Home Purchase</button>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-group-label">Kind</div>
+                    <div class="filter-buttons">
+                        <button class="filter-button active" onclick="setKind('Originations')" id="kindOrigination">Originations</button>
+                        <button class="filter-button" onclick="setKind('Applications')" id="kindApplication">Applications</button>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-group-label">View Mode</div>
+                    <div class="filter-buttons" style="flex-direction: column;">
+                        <button class="filter-button active" onclick="setViewMode('ratio')" id="viewModeRatio">Ratio</button>
+                        <button class="filter-button" onclick="setViewMode('gap')" id="viewModeGap">Gap</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="filter-grid-row2">
+                <div class="filter-group">
+                    <div class="filter-group-label">Column Options</div>
+                    <div class="filter-buttons" style="flex-direction: column;">
+                        <button class="filter-button" onclick="toggleDetails()" id="detailsToggle">Show Bank/Peer %</button>
+                        <button class="filter-button" onclick="selectAllMetrics()">Select All</button>
+                        <button class="filter-button" onclick="clearAllMetrics()">Clear All</button>
+                    </div>
+                </div>
+                
+                <div class="filter-group metrics-filter-group">
+                    <div class="filter-group-label">Metrics</div>
+                    <div class="metrics-container">
+                        <div class="metrics-grid" id="metricCheckboxes"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e0e0e0;">
+                <div style="display: flex; gap: 0.5rem;">
+                    <button class="filter-button" style="background: var(--sky-blue); color: white; flex: 1; padding: 0.75rem;" onclick="navigateToView('state')">
+                        State
+                    </button>
+                    <button class="filter-button" style="background: var(--sky-blue); color: white; flex: 1; padding: 0.75rem;" onclick="navigateToView('cbsa')">
+                        CBSA
+                    </button>
+                    <button class="filter-button" style="background: var(--sky-blue); color: white; flex: 1; padding: 0.75rem;" onclick="navigateToView('county')">
+                        County
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="switcherSection" style="display: none;"></div>
+
+        <div id="content">
+            <div class="loading">Loading Webster Bank data...</div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let allData = null;
+        let bankMetadata = null;
+        let currentView = 'state';
+        let selectedState = null;
+        let selectedCBSA = null;
+        let selectedCounty = null;
+        let selectedMetrics = [];
+        let loanPurpose = 'All Loans';
+        let kind = 'Originations'; // Applications or Originations
+        let viewMode = 'ratio';
+        let showDetails = false; // Toggle for Bank/Peer % columns
+        let availableStates = [];
+
+        // Bank information
+        const BANK_INFO = {
+            'Webster Bank': {
+                lei: 'WV0OVGBTLUP1XIUJE722',
+                rssd: '761806' // Webster Bank RSSD ID (from BigQuery SQL files)
+            },
+            'Webster Bank': {
+                lei: 'WV0OVGBTLUP1XIUJE722',
+                rssd: '761806' // Webster Bank RSSD ID (from BigQuery SQL files)
+            }
+        };
+
+        // All 8 redlining metrics + Total
+        // Order for table rows (descending):
+        // Order for filter checkboxes (50% in first row, 80% in second row)
+        const ALL_METRICS = [
+            "MMCT 50%",
+            "Black+Hispanic Tract 50%",
+            "Black Tract 50%",
+            "Hispanic Tract 50%",
+            "MMCT 80%",
+            "Black+Hispanic Tract 80%",
+            "Black Tract 80%",
+            "Hispanic Tract 80%"
+        ];
+        
+        // Order for table rows (50% then 80% for each metric type)
+        const TABLE_METRICS_ORDER = [
+            "MMCT 50%",
+            "MMCT 80%",
+            "Black+Hispanic Tract 50%",
+            "Black+Hispanic Tract 80%",
+            "Black Tract 50%",
+            "Black Tract 80%",
+            "Hispanic Tract 50%",
+            "Hispanic Tract 80%"
+        ];
+
+        // NCRC Colors
+        const colors = {
+            skyBlue: '#2fade3',
+            darkBlue: '#034ea0',
+            red: '#e82e2e',
+            gold: '#ffc23a',
+            green: '#C6EFCE',
+            gray: '#818390'
+        };
+
+        // Load JSON data
+        async function loadData() {
+            try {
+                // Try embedded data first, then fetch
+                let data;
+                if (typeof EMBEDDED_DATA !== 'undefined') {
+                    data = EMBEDDED_DATA;
+                } else {
+                    const response = await fetch('data/webster-bank-data.json');
+                    if (!response.ok) {
+                        throw new Error('Failed to load data file. Make sure data/webster-bank-data.json exists.');
+                    }
+                    data = await response.json();
+                }
+                allData = data.records || [];
+                bankMetadata = data.metadata || {};
+                
+                // Update bank header with LEI and RSSD
+                updateBankHeader();
+                
+                // Get available states
+                availableStates = getUniqueValues(allData, 'state');
+                setupStateButtons();
+                setupCBSAButtons();
+                
+                // Initialize with all metrics selected
+                selectedMetrics = [...ALL_METRICS];
+                setupMetricCheckboxes();
+                
+                // Always show filter box
+                document.getElementById('filterBox').style.display = 'flex';
+                
+                renderView();
+            } catch (error) {
+                document.getElementById('content').innerHTML = `
+                    <div class="error">
+                        <strong>Error loading data:</strong> ${error.message}<br>
+                        <small>Please ensure the data files are in the 'data' folder. Run generate_data.py to create them.</small>
+                    </div>
+                `;
+            }
+        }
+
+        // Setup state filter buttons
+        function setupStateButtons() {
+            const stateSelect = document.getElementById('stateSelect');
+            const stateFilterContent = document.getElementById('stateFilterContent');
+            const cbsaFilterContent = document.getElementById('cbsaFilterContent');
+            const countyFilterContent = document.getElementById('countyFilterContent');
+            const geographyLabel = document.getElementById('geographyLabel');
+            if (!stateSelect) return;
+            
+            // Show/hide dropdowns based on current view
+            if (currentView === 'state') {
+                // Show State dropdown, hide others
+                if (stateFilterContent) stateFilterContent.classList.remove('hidden');
+                if (cbsaFilterContent) cbsaFilterContent.classList.add('hidden');
+                if (countyFilterContent) countyFilterContent.classList.add('hidden');
+                if (geographyLabel) geographyLabel.textContent = 'State';
+                
+                // Populate state dropdown
+                stateSelect.innerHTML = '<option value="">All States</option>';
+                availableStates.forEach(state => {
+                    const option = document.createElement('option');
+                    option.value = state;
+                    option.textContent = state;
+                    option.selected = selectedState === state;
+                    stateSelect.appendChild(option);
+                });
+            } else if (currentView === 'cbsa') {
+                // Show CBSA dropdown, hide others
+                if (stateFilterContent) stateFilterContent.classList.add('hidden');
+                if (cbsaFilterContent) cbsaFilterContent.classList.remove('hidden');
+                if (countyFilterContent) countyFilterContent.classList.add('hidden');
+                if (geographyLabel) geographyLabel.textContent = 'CBSA';
+            } else if (currentView === 'county') {
+                // Show County dropdown, hide others
+                if (stateFilterContent) stateFilterContent.classList.add('hidden');
+                if (cbsaFilterContent) cbsaFilterContent.classList.add('hidden');
+                if (countyFilterContent) countyFilterContent.classList.remove('hidden');
+                if (geographyLabel) geographyLabel.textContent = 'County';
+            }
+        }
+
+        function handleStateChange(stateValue) {
+            if (stateValue === '') {
+                selectedState = null;
+                selectedCBSA = null;
+                selectedCounty = null;
+                currentView = 'state';
+            } else {
+                selectedState = stateValue;
+                selectedCBSA = null;
+                selectedCounty = null;
+                // Stay in state view when selecting a state from dropdown
+                currentView = 'state';
+            }
+            setupStateButtons();
+            setupCBSAButtons();
+            setupCountyButtons();
+            renderView();
+        }
+
+        function setupCBSAButtons() {
+            const cbsaSelect = document.getElementById('cbsaSelect');
+            if (!cbsaSelect || !allData) return;
+            
+            // Populate CBSA dropdown only when in CBSA view
+            if (currentView === 'cbsa' && selectedState) {
+                // Get available CBSAs for selected state
+                const stateData = allData.filter(r => r.state === selectedState);
+                const availableCBSAs = getUniqueValues(stateData, 'cbsa');
+                
+                // Populate CBSA dropdown
+                cbsaSelect.innerHTML = '<option value="">Select CBSA</option>';
+                availableCBSAs.forEach(cbsa => {
+                    const option = document.createElement('option');
+                    option.value = cbsa;
+                    option.textContent = cbsa;
+                    option.selected = selectedCBSA === cbsa;
+                    cbsaSelect.appendChild(option);
+                });
+                
+                // Auto-select first CBSA if none selected
+                if (!selectedCBSA && availableCBSAs.length > 0) {
+                    selectedCBSA = availableCBSAs[0];
+                    cbsaSelect.value = selectedCBSA;
+                }
+            }
+        }
+        
+        function setupCountyButtons() {
+            const countySelect = document.getElementById('countySelect');
+            if (!countySelect || !allData) return;
+            
+            // Populate County dropdown only when in County view
+            if (currentView === 'county' && selectedState && selectedCBSA) {
+                // Get available counties for selected state/CBSA
+                const countyData = allData.filter(r => r.state === selectedState && r.cbsa === selectedCBSA);
+                const availableCounties = getUniqueValues(countyData, 'county');
+                
+                // Populate County dropdown
+                countySelect.innerHTML = '<option value="">Select County</option>';
+                availableCounties.forEach(county => {
+                    const option = document.createElement('option');
+                    option.value = county;
+                    option.textContent = county;
+                    option.selected = selectedCounty === county;
+                    countySelect.appendChild(option);
+                });
+                
+                // Auto-select first county if none selected
+                if (!selectedCounty && availableCounties.length > 0) {
+                    selectedCounty = availableCounties[0];
+                    countySelect.value = selectedCounty;
+                }
+            }
+        }
+        
+        function handleCountyChange(countyValue) {
+            if (countyValue === '') {
+                // Don't allow deselecting County - keep current selection
+                return;
+            }
+            selectedCounty = countyValue;
+            currentView = 'county';
+            setupCountyButtons();
+            renderView();
+        }
+
+        function handleCBSAChange(cbsaValue) {
+            if (cbsaValue === '') {
+                // Don't allow deselecting CBSA - keep current selection
+                return;
+            }
+            selectedCBSA = cbsaValue;
+            selectedCounty = null;
+            currentView = 'cbsa';
+            setupStateButtons();
+            setupCBSAButtons();
+            setupCountyButtons();
+            renderView();
+        }
+
+        function setLoanPurpose(purpose) {
+            loanPurpose = purpose;
+            document.getElementById('loanPurposeAll').classList.toggle('active', purpose === 'All Loans');
+            document.getElementById('loanPurposePurchase').classList.toggle('active', purpose === 'Home Purchase');
+            renderView();
+        }
+
+        function setKind(kindValue) {
+            kind = kindValue;
+            document.getElementById('kindOrigination').classList.toggle('active', kindValue === 'Originations');
+            document.getElementById('kindApplication').classList.toggle('active', kindValue === 'Applications');
+            renderView();
+        }
+
+        function toggleDetails() {
+            showDetails = !showDetails;
+            const button = document.getElementById('detailsToggle');
+            button.textContent = showDetails ? 'Hide Bank/Peer %' : 'Show Bank/Peer %';
+            button.classList.toggle('active', showDetails);
+            renderView();
+        }
+
+        function updateBankHeader() {
+            // Get bank name from metadata or default to Frost Bank
+            const bankName = bankMetadata?.bank || 'Webster Bank';
+            const bankInfo = BANK_INFO[bankName] || BANK_INFO['Webster Bank'];
+            
+            const leiElement = document.getElementById('bankLEI');
+            const rssdElement = document.getElementById('bankRSSD');
+            
+            if (leiElement) {
+                leiElement.textContent = bankInfo.lei;
+            }
+            if (rssdElement) {
+                rssdElement.textContent = bankInfo.rssd;
+            }
+        }
+
+        function resetAllFilters() {
+            // Reset to defaults
+            selectedState = null;
+            loanPurpose = 'All Loans';
+            viewMode = 'ratio';
+            showDetails = false;
+            selectedMetrics = [...ALL_METRICS];
+            
+            // Update UI
+            setupStateButtons();
+            document.getElementById('loanPurposeAll').classList.add('active');
+            document.getElementById('loanPurposePurchase').classList.remove('active');
+            document.getElementById('viewModeRatio').classList.add('active');
+            document.getElementById('viewModeGap').classList.remove('active');
+            document.getElementById('detailsToggle').classList.remove('active');
+            document.getElementById('detailsToggle').textContent = 'Show Bank/Peer %';
+            
+            // Reset metrics
+            ALL_METRICS.forEach(metric => {
+                const checkbox = document.getElementById(`metric-${metric}`);
+                if (checkbox) checkbox.checked = true;
+            });
+            
+            // Reset view
+            currentView = 'state';
+            selectedCBSA = null;
+            selectedCounty = null;
+            
+            setupStateButtons();
+            setupCBSAButtons();
+            setupCountyButtons();
+            renderView();
+        }
+
+        // Navigate to a specific view level
+        function navigateToView(level) {
+            if (level === 'state') {
+                currentView = 'state';
+                selectedState = null;
+                selectedCBSA = null;
+                selectedCounty = null;
+            } else if (level === 'cbsa') {
+                currentView = 'cbsa';
+                // Keep selectedState if available, but clear CBSA and County
+                selectedCBSA = null;
+                selectedCounty = null;
+                // If no state selected, try to get first available state
+                if (!selectedState && allData && allData.length > 0) {
+                    const states = getUniqueValues(allData, 'state');
+                    if (states.length > 0) {
+                        selectedState = states[0];
+                    }
+                }
+                // Get first CBSA for selected state
+                if (selectedState) {
+                    const stateData = allData.filter(r => r.state === selectedState);
+                    const cbsas = getUniqueValues(stateData, 'cbsa');
+                    if (cbsas.length > 0) {
+                        selectedCBSA = cbsas[0];
+                    }
+                }
+            } else if (level === 'county') {
+                currentView = 'county';
+                // Keep selectedState and selectedCBSA if available, but clear County
+                selectedCounty = null;
+                // If no state selected, try to get first available state
+                if (!selectedState && allData && allData.length > 0) {
+                    const states = getUniqueValues(allData, 'state');
+                    if (states.length > 0) {
+                        selectedState = states[0];
+                        // Try to get first available CBSA for that state
+                        const cbsas = getUniqueValues(allData.filter(r => r.state === selectedState), 'cbsa');
+                        if (cbsas.length > 0) {
+                            selectedCBSA = cbsas[0];
+                        }
+                    }
+                }
+                // If no CBSA selected but we have a state, get first CBSA
+                if (selectedState && !selectedCBSA) {
+                    const stateData = allData.filter(r => r.state === selectedState);
+                    const cbsas = getUniqueValues(stateData, 'cbsa');
+                    if (cbsas.length > 0) {
+                        selectedCBSA = cbsas[0];
+                    }
+                }
+                // Get first county for selected state/CBSA
+                if (selectedState && selectedCBSA) {
+                    const countyData = allData.filter(r => r.state === selectedState && r.cbsa === selectedCBSA);
+                    const counties = getUniqueValues(countyData, 'county');
+                    if (counties.length > 0) {
+                        selectedCounty = counties[0];
+                    }
+                }
+            }
+            setupStateButtons();
+            setupCBSAButtons();
+            setupCountyButtons();
+            renderView();
+        }
+
+        // Setup metric checkboxes
+        function setupMetricCheckboxes() {
+            const container = document.getElementById('metricCheckboxes');
+            container.innerHTML = '';
+            
+            ALL_METRICS.forEach(metric => {
+                const div = document.createElement('div');
+                div.className = 'metric-checkbox';
+                div.innerHTML = `
+                    <input type="checkbox" id="metric-${metric}" checked onchange="toggleMetric('${metric}')">
+                    <label for="metric-${metric}">${metric}</label>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Metric filtering
+        function toggleMetric(metric) {
+            const index = selectedMetrics.indexOf(metric);
+            if (index > -1) {
+                selectedMetrics.splice(index, 1);
+            } else {
+                selectedMetrics.push(metric);
+            }
+            document.getElementById(`metric-${metric}`).checked = selectedMetrics.includes(metric);
+            renderView();
+        }
+
+        function selectAllMetrics() {
+            selectedMetrics = [...ALL_METRICS];
+            ALL_METRICS.forEach(metric => {
+                document.getElementById(`metric-${metric}`).checked = true;
+            });
+            renderView();
+        }
+
+        function clearAllMetrics() {
+            selectedMetrics = [];
+            ALL_METRICS.forEach(metric => {
+                document.getElementById(`metric-${metric}`).checked = false;
+            });
+            renderView();
+        }
+
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.getElementById('viewModeRatio').classList.toggle('active', mode === 'ratio');
+            document.getElementById('viewModeGap').classList.toggle('active', mode === 'gap');
+            renderView();
+        }
+
+        // Get ratio color class
+        function getRatioColorClass(ratio) {
+            if (!ratio || ratio === null) return '';
+            if (ratio < 1.0) return 'ratio-excellent';
+            if (ratio < 1.5) return 'ratio-good';
+            if (ratio < 2.0) return 'ratio-warning';
+            if (ratio < 3.0) return 'ratio-poor';
+            return 'ratio-severe';
+        }
+
+        // Check if a metric row has valid data for the geography
+        function hasValidMetricData(row) {
+            // A metric is only valid if it has loans > 0 for at least one year
+            // Having ratio/gap/bankShare data without loans means the metric doesn't apply to this geography
+            for (const year of [2022, 2023, 2024]) {
+                const yearData = row[`year${year}`];
+                // Must have loans > 0 to be valid (metrics without loans shouldn't be shown)
+                if (yearData && yearData.loans && yearData.loans > 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Format values
+        function formatRatio(ratio) {
+            if (ratio === null || ratio === undefined) return 'N/A';
+            return ratio.toFixed(2);
+        }
+
+        function formatPercent(value) {
+            if (value === null || value === undefined) return 'N/A';
+            return value.toFixed(1) + '%';
+        }
+
+        function formatGap(gap) {
+            if (gap === null || gap === undefined) return 'N/A';
+            const sign = gap >= 0 ? '+' : '';
+            return sign + gap.toFixed(1) + 'pp';
+        }
+
+        function formatCurrency(value) {
+            if (value === null || value === undefined || value === 0) return '—';
+            return '$' + Math.round(value).toLocaleString();
+        }
+
+        // Calculate shortfall: (gap / 100) * bankCount (only when gap < 0, meaning adverse)
+        function calculateShortfall(gap, bankCount) {
+            if (gap === null || gap === undefined || bankCount === null || bankCount === undefined) {
+                return null;
+            }
+            if (gap >= 0) {
+                return null; // Only calculate for adverse (negative gap)
+            }
+            return (gap / 100.0) * bankCount;
+        }
+
+        // Calculate damages: Shortfall * Avg Loan Amount (when significant and adverse)
+        // For now, we'll use a default average loan amount if not in data
+        // Significant and adverse means: gap < 0 (adverse)
+        function calculateDamages(shortfall, avgLoanAmount) {
+            if (shortfall === null || shortfall === undefined || shortfall >= 0) {
+                return null;
+            }
+            // Use provided avgLoanAmount, or default to $300,000 if not available
+            const loanAmount = avgLoanAmount || 300000;
+            return Math.abs(shortfall) * loanAmount;
+        }
+
+        // Filter data
+        function getFilteredData() {
+            if (!allData) return [];
+            
+            let filtered = allData.filter(r => {
+                // Filter by kind (Applications/Originations)
+                // If record has kind field, it must match; if no kind field exists, include it (backward compatibility)
+                if (r.kind !== undefined && r.kind !== null && r.kind !== kind) {
+                    return false;
+                }
+                // Filter by loan purpose
+                // "All Loans" = loan purposes 1, 2, 4, 31, 32 (includes both 'Home Purchase' and 'All Loans' categories)
+                // "Home Purchase" = loan purpose 1 only (categorized as 'Home Purchase')
+                if (loanPurpose === 'Home Purchase' && r.loanPurpose !== 'Home Purchase') {
+                    return false;
+                }
+                // When "All Loans" is selected, no filter is applied, so both 'Home Purchase' (loan purpose 1) 
+                // and 'All Loans' (loan purposes 2, 4, 31, 32) are shown, giving us all loan purposes: 1, 2, 4, 31, 32
+                // Filter by metrics (but always include "Total" metric for calculations, even if not in selectedMetrics)
+                if (selectedMetrics.length > 0 && !selectedMetrics.includes(r.metric) && r.metric !== 'Total') {
+                    return false;
+                }
+                // Filter by geography
+                if (selectedState && r.state !== selectedState) return false;
+                if (selectedCBSA && r.cbsa !== selectedCBSA) return false;
+                if (selectedCounty && r.county !== selectedCounty) return false;
+                
+                return true;
+            });
+
+            return filtered;
+        }
+
+        // Get unique values
+        function getUniqueValues(data, field) {
+            return [...new Set(data.map(r => r[field]).filter(v => v))].sort();
+        }
+
+        // Aggregate data by level
+        function aggregateData(data, level) {
+            const grouped = {};
+            
+            data.forEach(record => {
+                let key;
+                if (level === 'state') {
+                    key = record.state;
+                } else if (level === 'cbsa') {
+                    key = `${record.state}||${record.cbsa}`;
+                } else if (level === 'county') {
+                    key = `${record.state}||${record.cbsa}||${record.county}`;
+                }
+
+                if (!key) return;
+
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        state: record.state,
+                        cbsa: record.cbsa,
+                        county: record.county,
+                        records: [],
+                        totalLoans: 0,
+                        avgRatio: 0,
+                        worstRatio: null,
+                        worstGap: null
+                    };
+                }
+
+                grouped[key].records.push(record);
+                if (record.bankCount) grouped[key].totalLoans += record.bankCount;
+                if (record.ratio && (grouped[key].worstRatio === null || record.ratio > grouped[key].worstRatio)) {
+                    grouped[key].worstRatio = record.ratio;
+                }
+                if (record.gap && (grouped[key].worstGap === null || record.gap < grouped[key].worstGap)) {
+                    grouped[key].worstGap = record.gap;
+                }
+            });
+
+            // Calculate averages
+            Object.values(grouped).forEach(group => {
+                const ratios = group.records.map(r => r.ratio).filter(r => r !== null);
+                if (ratios.length > 0) {
+                    group.avgRatio = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+                }
+            });
+
+            return Object.values(grouped);
+        }
+
+        // Render view
+        function renderView() {
+            if (!allData || allData.length === 0) {
+                document.getElementById('content').innerHTML = '<div class="loading">Loading data...</div>';
+                return;
+            }
+
+            const filtered = getFilteredData();
+            
+            if (filtered.length === 0) {
+                document.getElementById('content').innerHTML = `
+                    <div class="empty-state">
+                        <h3>No data available</h3>
+                        <p>Try adjusting your filters</p>
+                    </div>
+                `;
+                return;
+            }
+
+            updateBreadcrumb();
+            
+            // Update dropdowns based on current view
+            setupStateButtons();
+            setupCBSAButtons();
+            setupCountyButtons();
+            
+            // Always show filter box
+            const filterBox = document.getElementById('filterBox');
+            if (filterBox) {
+                filterBox.style.display = 'block';
+            }
+            
+            if (currentView === 'state') {
+                renderStateView(filtered);
+            } else if (currentView === 'cbsa') {
+                renderCBSAView(filtered);
+            } else if (currentView === 'county') {
+                renderCountyView(filtered);
+            }
+        }
+
+        // Aggregate data to state level by metric and year
+        // Properly sums loans and calculates weighted averages
+        function aggregateToStateLevel(data) {
+            const grouped = {};
+            
+            data.forEach(record => {
+                // Group by: state, metric, year (aggregate across loan purposes)
+                const key = `${record.state}||${record.metric}||${record.year}`;
+                
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        state: record.state,
+                        metric: record.metric,
+                        year: record.year,
+                        totalBankLoans: 0,
+                        bankShareWeightedSum: 0,
+                        peerShareWeightedSum: 0,
+                        ratioWeightedSum: 0,
+                        gapWeightedSum: 0,
+                        totalWeight: 0,
+                        totalLoanAmount: 0,
+                        loanAmountCount: 0,
+                        totalDamages: 0
+                    };
+                }
+                
+                const group = grouped[key];
+                const loanCount = record.bankCount || 0;
+                group.totalBankLoans += loanCount;
+                
+                // Calculate weighted sums for aggregation
+                // Weight by loan count to get proper state-level averages
+                if (record.bankShare !== null && record.bankShare !== undefined && loanCount > 0) {
+                    group.bankShareWeightedSum += record.bankShare * loanCount;
+                    group.totalWeight += loanCount;
+                }
+                if (record.peerShare !== null && record.peerShare !== undefined && loanCount > 0) {
+                    group.peerShareWeightedSum += record.peerShare * loanCount;
+                }
+                if (record.ratio !== null && record.ratio !== undefined && loanCount > 0) {
+                    group.ratioWeightedSum += record.ratio * loanCount;
+                }
+                if (record.gap !== null && record.gap !== undefined && loanCount > 0) {
+                    group.gapWeightedSum += record.gap * loanCount;
+                }
+                // Aggregate average loan amount (weighted by loan count)
+                if (record.avgLoanAmount !== null && record.avgLoanAmount !== undefined && loanCount > 0) {
+                    group.totalLoanAmount += record.avgLoanAmount * loanCount;
+                    group.loanAmountCount += loanCount;
+                }
+                // Sum damages (already calculated in processed data)
+                if (record.damages !== null && record.damages !== undefined) {
+                    group.totalDamages += record.damages;
+                }
+            });
+            
+            // Calculate weighted averages
+            Object.values(grouped).forEach(group => {
+                if (group.totalWeight > 0) {
+                    group.avgBankShare = group.bankShareWeightedSum / group.totalWeight;
+                    group.avgPeerShare = group.peerShareWeightedSum / group.totalWeight;
+                    group.avgRatio = group.ratioWeightedSum / group.totalWeight;
+                    group.avgGap = group.gapWeightedSum / group.totalWeight;
+                } else {
+                    group.avgBankShare = null;
+                    group.avgPeerShare = null;
+                    group.avgRatio = null;
+                    group.avgGap = null;
+                }
+                // Calculate average loan amount (weighted average)
+                group.avgLoanAmount = group.loanAmountCount > 0 ? group.totalLoanAmount / group.loanAmountCount : null;
+                // Use total damages (already calculated, just sum them)
+                group.totalDamages = group.totalDamages > 0 ? group.totalDamages : null;
+            });
+            
+            return Object.values(grouped);
+        }
+
+        // Render state view with aggregated state-level metrics
+        function renderStateView(data) {
+            // If no state selected, aggregate to national level; otherwise aggregate to state level
+            const isNationalView = !selectedState;
+            const aggregated = isNationalView ? aggregateToNationalLevel(data) : aggregateToStateLevel(data);
+            
+            // Pivot by metric (and state if state view) with years as columns (aggregate across loan purposes)
+            const pivoted = {};
+            
+            aggregated.forEach(item => {
+                // For national view, key is just metric; for state view, key includes state
+                const key = isNationalView ? item.metric : `${item.state}||${item.metric}`;
+                
+                if (!pivoted[key]) {
+                    pivoted[key] = {
+                        state: isNationalView ? 'National' : item.state,
+                        metric: item.metric,
+                        year2022: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2023: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2024: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null }
+                    };
+                }
+                
+                const yearKey = `year${item.year}`;
+                // Aggregate: use weighted average if multiple loan purposes exist
+                if (pivoted[key][yearKey].ratio === null) {
+                    pivoted[key][yearKey].ratio = item.avgRatio;
+                    pivoted[key][yearKey].gap = item.avgGap;
+                    pivoted[key][yearKey].bankShare = item.avgBankShare;
+                    pivoted[key][yearKey].peerShare = item.avgPeerShare;
+                    pivoted[key][yearKey].loans = item.totalBankLoans || 0;
+                    // Use damages from aggregated data (already calculated in process_bigquery_data.py)
+                    // Set damages if gap is negative (adverse) OR ratio > 1 (adverse)
+                    const isAdverse = (item.avgGap !== null && item.avgGap !== undefined && item.avgGap < 0) ||
+                                     (item.avgRatio !== null && item.avgRatio !== undefined && item.avgRatio > 1);
+                    if (isAdverse) {
+                        if (item.totalDamages !== null && item.totalDamages !== undefined) {
+                            pivoted[key][yearKey].damages = item.totalDamages;
+                        } else {
+                            // Recalculate if not available - use gap for calculation
+                            const shortfall = calculateShortfall(item.avgGap, item.totalBankLoans);
+                            pivoted[key][yearKey].damages = calculateDamages(shortfall, item.avgLoanAmount);
+                        }
+                    } else {
+                        pivoted[key][yearKey].damages = null;
+                    }
+                } else {
+                    // Combine: weighted average across loan purposes
+                    const totalLoans = pivoted[key][yearKey].loans + (item.totalBankLoans || 0);
+                    if (totalLoans > 0) {
+                        const weight1 = pivoted[key][yearKey].loans / totalLoans;
+                        const weight2 = (item.totalBankLoans || 0) / totalLoans;
+                        if (pivoted[key][yearKey].ratio !== null && item.avgRatio !== null) {
+                            pivoted[key][yearKey].ratio = (pivoted[key][yearKey].ratio * weight1) + (item.avgRatio * weight2);
+                        }
+                        if (pivoted[key][yearKey].gap !== null && item.avgGap !== null) {
+                            pivoted[key][yearKey].gap = (pivoted[key][yearKey].gap * weight1) + (item.avgGap * weight2);
+                        }
+                        if (pivoted[key][yearKey].bankShare !== null && item.avgBankShare !== null) {
+                            pivoted[key][yearKey].bankShare = (pivoted[key][yearKey].bankShare * weight1) + (item.avgBankShare * weight2);
+                        }
+                        if (pivoted[key][yearKey].peerShare !== null && item.avgPeerShare !== null) {
+                            pivoted[key][yearKey].peerShare = (pivoted[key][yearKey].peerShare * weight1) + (item.avgPeerShare * weight2);
+                        }
+                        pivoted[key][yearKey].loans = totalLoans;
+                        // Sum damages (already calculated in processed data) - if gap is negative OR ratio > 1 (adverse)
+                        // Damages are the same regardless of view mode
+                        const isAdverse = (pivoted[key][yearKey].gap !== null && pivoted[key][yearKey].gap !== undefined && pivoted[key][yearKey].gap < 0) ||
+                                          (pivoted[key][yearKey].ratio !== null && pivoted[key][yearKey].ratio !== undefined && pivoted[key][yearKey].ratio > 1);
+                        if (isAdverse) {
+                            if (item.totalDamages !== null && item.totalDamages !== undefined) {
+                                pivoted[key][yearKey].damages = (pivoted[key][yearKey].damages || 0) + item.totalDamages;
+                            } else {
+                                // Recalculate if not available
+                                const shortfall = calculateShortfall(pivoted[key][yearKey].gap, totalLoans);
+                                pivoted[key][yearKey].damages = calculateDamages(shortfall, item.avgLoanAmount);
+                            }
+                        } else {
+                            pivoted[key][yearKey].damages = null;
+                        }
+                    }
+                }
+            });
+
+            // Calculate total loans for the geography
+            // Use the "Total" metric if available (most accurate - represents all loans in geography)
+            // Otherwise use maximum count across all metrics for each year to avoid double-counting
+            let totalLoansForGeography = 0;
+            let year2022Count = 0;
+            let year2023Count = 0;
+            let year2024Count = 0;
+            
+            // Get the filtered data for this geography (including "Total" metric even though it's not displayed)
+            const filteredData = getFilteredData();
+            const geographyRecords = filteredData.filter(record => 
+                (!selectedState || record.state === selectedState)
+            );
+            
+            // First, try to use "Total" metric (most accurate)
+            const totalMetricRecords = geographyRecords.filter(r => r.metric === 'Total');
+            if (totalMetricRecords.length > 0) {
+                const countsByYear = { 2022: 0, 2023: 0, 2024: 0 };
+                totalMetricRecords.forEach(record => {
+                    const count = record.bankCount || 0;
+                    // Sum all totals for this year (not max, since these are county-level totals)
+                    countsByYear[record.year] += count;
+                });
+                year2022Count = countsByYear[2022];
+                year2023Count = countsByYear[2023];
+                year2024Count = countsByYear[2024];
+            } else {
+                // Fallback: use maximum count across all metrics for each year
+                const countsByYear = { 2022: 0, 2023: 0, 2024: 0 };
+                geographyRecords.forEach(record => {
+                    const count = record.bankCount || 0;
+                    if (count > countsByYear[record.year]) {
+                        countsByYear[record.year] = count;
+                    }
+                });
+                year2022Count = countsByYear[2022];
+                year2023Count = countsByYear[2023];
+                year2024Count = countsByYear[2024];
+            }
+            totalLoansForGeography = year2022Count + year2023Count + year2024Count;
+            
+            // Build descriptive text
+            const kindText = kind === 'Originations' ? 'Originations' : 'Applications';
+            const purposeText = loanPurpose === 'All Loans' ? 'All Loans' : 'Home Purchase';
+            const bankName = bankMetadata?.bank || 'Frost Bank';
+            
+            let html = '<div class="data-table-container">';
+            const viewTitle = isNationalView ? 'National-Level Analysis - Aggregated Metrics' : 'State-Level Analysis - Aggregated Metrics';
+            html += `<h2 class="table-title">${viewTitle}</h2>`;
+            html += `<div style="font-size: 1rem; color: var(--dark-blue); font-weight: 600; margin-bottom: 1rem; padding: 0.5rem; background: #f0f4f8; border-left: 4px solid var(--sky-blue); border-radius: 4px;">`;
+            html += `${bankName} - Total ${kindText} (${purposeText}): <span style="color: var(--dark-blue);">${totalLoansForGeography.toLocaleString()}</span> `;
+            html += `(2022: ${year2022Count.toLocaleString()}, 2023: ${year2023Count.toLocaleString()}, 2024: ${year2024Count.toLocaleString()})`;
+            html += `</div>`;
+            html += '<table><thead><tr>';
+            html += '<th>Metric</th>';
+            let colIndex = 1;
+            [2022, 2023, 2024].forEach(year => {
+                if (showDetails) {
+                    html += `<th>${year} Bank %</th>`;
+                    html += `<th>${year} Peer %</th>`;
+                }
+                html += `<th>${year} ${viewMode === 'ratio' ? 'Ratio' : 'Gap'}</th>`;
+                html += `<th>${year} Damages</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            // Sort rows according to ALL_METRICS order
+            const sortedRows = Object.values(pivoted)
+                .filter(row => row.metric !== 'Total' && hasValidMetricData(row))
+                .sort((a, b) => {
+                    const indexA = ALL_METRICS.indexOf(a.metric);
+                    const indexB = ALL_METRICS.indexOf(b.metric);
+                    // If metric not in ALL_METRICS, put it at the end
+                    if (indexA === -1) return 1;
+                    if (indexB === -1) return -1;
+                    return indexA - indexB;
+                });
+            
+            sortedRows.forEach(row => {
+                // In state view, rows are not clickable - use dropdown to filter by state
+                // In national view, show just the metric; in state view, show state and metric
+                html += `<tr>`;
+                if (isNationalView) {
+                    html += `<td><strong>${row.metric}</strong></td>`;
+                } else {
+                    html += `<td><strong>${row.state} - ${row.metric}</strong></td>`;
+                }
+                
+                // Year columns - show Bank %, Peer %, Ratio/Gap, and Damages for each year
+                [2022, 2023, 2024].forEach(year => {
+                    const yearData = row[`year${year}`];
+                    if (showDetails) {
+                        // Bank Share
+                        html += `<td>${yearData.bankShare !== null ? formatPercent(yearData.bankShare) : '—'}</td>`;
+                        // Peer Share
+                        html += `<td>${yearData.peerShare !== null ? formatPercent(yearData.peerShare) : '—'}</td>`;
+                    }
+                    // Ratio/Gap
+                    const value = viewMode === 'ratio' ? yearData.ratio : yearData.gap;
+                    const displayValue = viewMode === 'ratio' ? formatRatio(value) : formatGap(value);
+                    // Color: red for negative/adverse, #2fade3 for positive
+                    // For ratio: > 1 is bad (negative/adverse), < 1 is good (positive)
+                    // For gap: < 0 is negative (adverse), > 0 is positive
+                    let valueColorClass = '';
+                    if (value !== null && value !== undefined) {
+                        if (viewMode === 'ratio') {
+                            // Ratio: > 1 is bad (negative/adverse), < 1 is good (positive)
+                            if (value > 1) {
+                                valueColorClass = 'value-negative';
+                            } else if (value < 1) {
+                                valueColorClass = 'value-positive';
+                            }
+                        } else {
+                            // Gap: < 0 is negative/adverse, > 0 is positive
+                            if (value < 0) {
+                                valueColorClass = 'value-negative';
+                            } else if (value > 0) {
+                                valueColorClass = 'value-positive';
+                            }
+                        }
+                    }
+                    // No background colors - only use text colors for both ratio and gap views
+                    html += `<td><span class="ratio-cell ${valueColorClass}">${displayValue}</span></td>`;
+                    // Damages - show only when adverse:
+                    //   - In ratio view: ratio > 1 (bad)
+                    //   - In gap view: gap < 0 (adverse)
+                    const gapValue = yearData.gap;
+                    const ratioValue = yearData.ratio;
+                    let damagesValue = null;
+                    if (viewMode === 'ratio') {
+                        // For ratio view: show damages only if ratio > 1 (adverse)
+                        damagesValue = (ratioValue !== null && ratioValue !== undefined && ratioValue > 1) ? yearData.damages : null;
+                    } else {
+                        // For gap view: show damages only if gap < 0 (adverse)
+                        damagesValue = (gapValue !== null && gapValue !== undefined && gapValue < 0) ? yearData.damages : null;
+                    }
+                    html += `<td>${formatCurrency(damagesValue)}</td>`;
+                });
+                
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('content').innerHTML = html;
+            document.getElementById('switcherSection').style.display = 'none';
+        }
+
+        // Pivot data by year for detailed metric view
+        function pivotDataByYear(data) {
+            const grouped = {};
+            
+            data.forEach(record => {
+                // Group by: state, cbsa, county, metric (aggregate across loan purposes)
+                const key = `${record.state}||${record.cbsa}||${record.county}||${record.metric}`;
+                
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        state: record.state,
+                        cbsa: record.cbsa,
+                        county: record.county,
+                        metric: record.metric,
+                        year2022: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2023: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2024: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null }
+                    };
+                }
+                
+                const yearKey = `year${record.year}`;
+                if (grouped[key][yearKey]) {
+                    // Aggregate: if multiple loan purposes, use weighted average
+                    if (grouped[key][yearKey].ratio === null) {
+                        grouped[key][yearKey].ratio = record.ratio;
+                        grouped[key][yearKey].gap = record.gap;
+                        grouped[key][yearKey].bankShare = record.bankShare;
+                        grouped[key][yearKey].peerShare = record.peerShare;
+                        grouped[key][yearKey].loans = record.bankCount || 0;
+                        // Use damages from data (already calculated) - if gap is negative OR ratio > 1 (adverse)
+                        // Damages are the same regardless of view mode
+                        const isAdverse = (record.gap !== null && record.gap !== undefined && record.gap < 0) ||
+                                         (record.ratio !== null && record.ratio !== undefined && record.ratio > 1);
+                        if (isAdverse && record.damages !== null && record.damages !== undefined) {
+                            grouped[key][yearKey].damages = record.damages;
+                        } else {
+                            grouped[key][yearKey].damages = null;
+                        }
+                    } else {
+                        // Combine: weighted average across loan purposes
+                        const totalLoans = grouped[key][yearKey].loans + (record.bankCount || 0);
+                        if (totalLoans > 0) {
+                            const weight1 = grouped[key][yearKey].loans / totalLoans;
+                            const weight2 = (record.bankCount || 0) / totalLoans;
+                            if (grouped[key][yearKey].ratio !== null && record.ratio !== null) {
+                                grouped[key][yearKey].ratio = (grouped[key][yearKey].ratio * weight1) + (record.ratio * weight2);
+                            }
+                            if (grouped[key][yearKey].gap !== null && record.gap !== null) {
+                                grouped[key][yearKey].gap = (grouped[key][yearKey].gap * weight1) + (record.gap * weight2);
+                            }
+                            if (grouped[key][yearKey].bankShare !== null && record.bankShare !== null) {
+                                grouped[key][yearKey].bankShare = (grouped[key][yearKey].bankShare * weight1) + (record.bankShare * weight2);
+                            }
+                            if (grouped[key][yearKey].peerShare !== null && record.peerShare !== null) {
+                                grouped[key][yearKey].peerShare = (grouped[key][yearKey].peerShare * weight1) + (record.peerShare * weight2);
+                            }
+                            grouped[key][yearKey].loans = totalLoans;
+                            // Sum damages - if gap is negative OR ratio > 1 (adverse)
+                            // Damages are the same regardless of view mode
+                            const isAdverse = (grouped[key][yearKey].gap !== null && grouped[key][yearKey].gap !== undefined && grouped[key][yearKey].gap < 0) ||
+                                             (grouped[key][yearKey].ratio !== null && grouped[key][yearKey].ratio !== undefined && grouped[key][yearKey].ratio > 1);
+                            if (isAdverse) {
+                                const recordIsAdverse = (record.gap !== null && record.gap !== undefined && record.gap < 0) ||
+                                                       (record.ratio !== null && record.ratio !== undefined && record.ratio > 1);
+                                if (recordIsAdverse && record.damages !== null && record.damages !== undefined) {
+                                    grouped[key][yearKey].damages = (grouped[key][yearKey].damages || 0) + (record.damages || 0);
+                                }
+                            } else {
+                                grouped[key][yearKey].damages = null;
+                            }
+                        }
+                    }
+                }
+            });
+            
+            return Object.values(grouped);
+        }
+
+        // Aggregate data to CBSA level by metric and year
+        function aggregateToCBSALevel(data) {
+            const grouped = {};
+            
+            data.forEach(record => {
+                // Group by: state, cbsa, metric, year (aggregate across counties and loan purposes)
+                const key = `${record.state}||${record.cbsa}||${record.metric}||${record.year}`;
+                
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        state: record.state,
+                        cbsa: record.cbsa,
+                        metric: record.metric,
+                        year: record.year,
+                        totalBankLoans: 0,
+                        bankShareWeightedSum: 0,
+                        peerShareWeightedSum: 0,
+                        ratioWeightedSum: 0,
+                        gapWeightedSum: 0,
+                        totalWeight: 0,
+                        totalLoanAmount: 0,
+                        loanAmountCount: 0,
+                        totalDamages: 0
+                    };
+                }
+                
+                const group = grouped[key];
+                const loanCount = record.bankCount || 0;
+                group.totalBankLoans += loanCount;
+                
+                // Calculate weighted sums for aggregation
+                // Weight by loan count to get proper CBSA-level averages
+                if (record.bankShare !== null && record.bankShare !== undefined && loanCount > 0) {
+                    group.bankShareWeightedSum += record.bankShare * loanCount;
+                    group.totalWeight += loanCount;
+                }
+                if (record.peerShare !== null && record.peerShare !== undefined && loanCount > 0) {
+                    group.peerShareWeightedSum += record.peerShare * loanCount;
+                }
+                if (record.ratio !== null && record.ratio !== undefined && loanCount > 0) {
+                    group.ratioWeightedSum += record.ratio * loanCount;
+                }
+                if (record.gap !== null && record.gap !== undefined && loanCount > 0) {
+                    group.gapWeightedSum += record.gap * loanCount;
+                }
+                // Aggregate average loan amount (weighted by loan count)
+                if (record.avgLoanAmount !== null && record.avgLoanAmount !== undefined && loanCount > 0) {
+                    group.totalLoanAmount += record.avgLoanAmount * loanCount;
+                    group.loanAmountCount += loanCount;
+                }
+                // Sum damages (already calculated in processed data)
+                if (record.damages !== null && record.damages !== undefined) {
+                    group.totalDamages += record.damages;
+                }
+            });
+            
+            // Calculate weighted averages
+            Object.values(grouped).forEach(group => {
+                if (group.totalWeight > 0) {
+                    group.avgBankShare = group.bankShareWeightedSum / group.totalWeight;
+                    group.avgPeerShare = group.peerShareWeightedSum / group.totalWeight;
+                    group.avgRatio = group.ratioWeightedSum / group.totalWeight;
+                    group.avgGap = group.gapWeightedSum / group.totalWeight;
+                } else {
+                    group.avgBankShare = null;
+                    group.avgPeerShare = null;
+                    group.avgRatio = null;
+                    group.avgGap = null;
+                }
+                // Calculate average loan amount (weighted average)
+                group.avgLoanAmount = group.loanAmountCount > 0 ? group.totalLoanAmount / group.loanAmountCount : null;
+                // Use total damages (already calculated, just sum them)
+                group.totalDamages = group.totalDamages > 0 ? group.totalDamages : null;
+            });
+            
+            return Object.values(grouped);
+        }
+
+        // Aggregate data to county level by metric and year
+        // Properly sums loans and calculates weighted averages
+        function aggregateToCountyLevel(data) {
+            const grouped = {};
+            
+            data.forEach(record => {
+                // Group by: state, cbsa, county, metric, year (aggregate across loan purposes)
+                const key = `${record.state}||${record.cbsa}||${record.county}||${record.metric}||${record.year}`;
+                
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        state: record.state,
+                        cbsa: record.cbsa,
+                        county: record.county,
+                        metric: record.metric,
+                        year: record.year,
+                        totalBankLoans: 0,
+                        bankShareWeightedSum: 0,
+                        peerShareWeightedSum: 0,
+                        ratioWeightedSum: 0,
+                        gapWeightedSum: 0,
+                        totalWeight: 0,
+                        totalLoanAmount: 0,
+                        loanAmountCount: 0,
+                        totalDamages: 0
+                    };
+                }
+                
+                const group = grouped[key];
+                const loanCount = record.bankCount || 0;
+                group.totalBankLoans += loanCount;
+                
+                // Calculate weighted sums for aggregation
+                // Weight by loan count to get proper county-level averages
+                if (record.bankShare !== null && record.bankShare !== undefined && loanCount > 0) {
+                    group.bankShareWeightedSum += record.bankShare * loanCount;
+                    group.totalWeight += loanCount;
+                }
+                if (record.peerShare !== null && record.peerShare !== undefined && loanCount > 0) {
+                    group.peerShareWeightedSum += record.peerShare * loanCount;
+                }
+                if (record.ratio !== null && record.ratio !== undefined && loanCount > 0) {
+                    group.ratioWeightedSum += record.ratio * loanCount;
+                }
+                if (record.gap !== null && record.gap !== undefined && loanCount > 0) {
+                    group.gapWeightedSum += record.gap * loanCount;
+                }
+                // Aggregate average loan amount (weighted by loan count)
+                if (record.avgLoanAmount !== null && record.avgLoanAmount !== undefined && loanCount > 0) {
+                    group.totalLoanAmount += record.avgLoanAmount * loanCount;
+                    group.loanAmountCount += loanCount;
+                }
+                // Sum damages (already calculated in processed data)
+                if (record.damages !== null && record.damages !== undefined) {
+                    group.totalDamages += record.damages;
+                }
+            });
+            
+            // Calculate weighted averages
+            Object.values(grouped).forEach(group => {
+                if (group.totalWeight > 0) {
+                    group.avgBankShare = group.bankShareWeightedSum / group.totalWeight;
+                    group.avgPeerShare = group.peerShareWeightedSum / group.totalWeight;
+                    group.avgRatio = group.ratioWeightedSum / group.totalWeight;
+                    group.avgGap = group.gapWeightedSum / group.totalWeight;
+                } else {
+                    group.avgBankShare = null;
+                    group.avgPeerShare = null;
+                    group.avgRatio = null;
+                    group.avgGap = null;
+                }
+                // Calculate average loan amount (weighted average)
+                group.avgLoanAmount = group.loanAmountCount > 0 ? group.totalLoanAmount / group.loanAmountCount : null;
+                // Use total damages (already calculated, just sum them)
+                group.totalDamages = group.totalDamages > 0 ? group.totalDamages : null;
+            });
+            
+            return Object.values(grouped);
+        }
+
+        // Render CBSA view with aggregated CBSA-level metrics
+        function renderCBSAView(data) {
+            // Aggregate to CBSA level
+            const cbsaAggregated = aggregateToCBSALevel(data);
+            const availableCBSAs = getUniqueValues(data.filter(r => r.state === selectedState), 'cbsa');
+            
+            // Pivot by state, cbsa, metric with years as columns (aggregate across counties and loan purposes)
+            const pivoted = {};
+            
+            cbsaAggregated.forEach(item => {
+                // Only include if matches selected CBSA (must have a selected CBSA)
+                if (!selectedCBSA || item.cbsa !== selectedCBSA) return;
+                if (item.state !== selectedState) return;
+                
+                // For CBSA view, aggregate by metric only (no CBSA in key since we're showing one CBSA)
+                const key = `${item.metric}`;
+                
+                if (!pivoted[key]) {
+                    pivoted[key] = {
+                        metric: item.metric,
+                        year2022: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2023: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2024: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null }
+                    };
+                }
+                
+                const yearKey = `year${item.year}`;
+                // Aggregate: use weighted average if multiple loan purposes exist
+                if (pivoted[key][yearKey].ratio === null) {
+                    pivoted[key][yearKey].ratio = item.avgRatio;
+                    pivoted[key][yearKey].gap = item.avgGap;
+                    pivoted[key][yearKey].bankShare = item.avgBankShare;
+                    pivoted[key][yearKey].peerShare = item.avgPeerShare;
+                    pivoted[key][yearKey].loans = item.totalBankLoans;
+                    // Use damages from aggregated data - if gap is negative OR ratio > 1 (adverse)
+                    // Damages are the same regardless of view mode
+                    const isAdverse = (item.avgGap !== null && item.avgGap !== undefined && item.avgGap < 0) ||
+                                     (item.avgRatio !== null && item.avgRatio !== undefined && item.avgRatio > 1);
+                    if (isAdverse) {
+                        if (item.totalDamages !== null && item.totalDamages !== undefined) {
+                            pivoted[key][yearKey].damages = item.totalDamages;
+                        } else {
+                            const shortfall = calculateShortfall(item.avgGap, item.totalBankLoans);
+                            pivoted[key][yearKey].damages = calculateDamages(shortfall, item.avgLoanAmount);
+                        }
+                    } else {
+                        pivoted[key][yearKey].damages = null;
+                    }
+                } else {
+                    // Combine: weighted average across loan purposes
+                    const totalLoans = pivoted[key][yearKey].loans + item.totalBankLoans;
+                    if (totalLoans > 0) {
+                        const weight1 = pivoted[key][yearKey].loans / totalLoans;
+                        const weight2 = item.totalBankLoans / totalLoans;
+                        if (pivoted[key][yearKey].ratio !== null && item.avgRatio !== null) {
+                            pivoted[key][yearKey].ratio = (pivoted[key][yearKey].ratio * weight1) + (item.avgRatio * weight2);
+                        }
+                        if (pivoted[key][yearKey].gap !== null && item.avgGap !== null) {
+                            pivoted[key][yearKey].gap = (pivoted[key][yearKey].gap * weight1) + (item.avgGap * weight2);
+                        }
+                        if (pivoted[key][yearKey].bankShare !== null && item.avgBankShare !== null) {
+                            pivoted[key][yearKey].bankShare = (pivoted[key][yearKey].bankShare * weight1) + (item.avgBankShare * weight2);
+                        }
+                        if (pivoted[key][yearKey].peerShare !== null && item.avgPeerShare !== null) {
+                            pivoted[key][yearKey].peerShare = (pivoted[key][yearKey].peerShare * weight1) + (item.avgPeerShare * weight2);
+                        }
+                        pivoted[key][yearKey].loans = totalLoans;
+                        // Sum damages (already calculated in processed data) - if gap is negative OR ratio > 1 (adverse)
+                        // Damages are the same regardless of view mode
+                        const isAdverse = (pivoted[key][yearKey].gap !== null && pivoted[key][yearKey].gap !== undefined && pivoted[key][yearKey].gap < 0) ||
+                                          (pivoted[key][yearKey].ratio !== null && pivoted[key][yearKey].ratio !== undefined && pivoted[key][yearKey].ratio > 1);
+                        if (isAdverse) {
+                            if (item.totalDamages !== null && item.totalDamages !== undefined) {
+                                pivoted[key][yearKey].damages = (pivoted[key][yearKey].damages || 0) + item.totalDamages;
+                            } else {
+                                // Recalculate if not available
+                                const shortfall = calculateShortfall(pivoted[key][yearKey].gap, totalLoans);
+                                pivoted[key][yearKey].damages = calculateDamages(shortfall, item.avgLoanAmount);
+                            }
+                        } else {
+                            pivoted[key][yearKey].damages = null;
+                        }
+                    }
+                }
+            });
+
+            // Calculate total loans for the geography
+            // Use the "Total" metric if available (represents all loans in geography)
+            // Otherwise use maximum count across metrics to avoid double-counting
+            let totalLoansForGeography = 0;
+            let year2022Count = 0;
+            let year2023Count = 0;
+            let year2024Count = 0;
+            
+            // Get the filtered data for this geography
+            const filteredData = getFilteredData();
+            const geographyRecords = filteredData.filter(record => 
+                (!selectedState || record.state === selectedState) && 
+                (!selectedCBSA || record.cbsa === selectedCBSA)
+            );
+            
+            // First, try to use "Total" metric (most accurate)
+            // Sum all "Total" metric records for this geography (they may be at county level)
+            const totalMetricRecords = geographyRecords.filter(r => r.metric === 'Total');
+            if (totalMetricRecords.length > 0) {
+                const countsByYear = { 2022: 0, 2023: 0, 2024: 0 };
+                totalMetricRecords.forEach(record => {
+                    const count = record.bankCount || 0;
+                    // Sum all totals for this year (not max, since these are county-level totals)
+                    countsByYear[record.year] += count;
+                });
+                year2022Count = countsByYear[2022];
+                year2023Count = countsByYear[2023];
+                year2024Count = countsByYear[2024];
+            } else {
+                // Fallback: use maximum count across all metrics for each year
+                const countsByYear = { 2022: 0, 2023: 0, 2024: 0 };
+                geographyRecords.forEach(record => {
+                    const count = record.bankCount || 0;
+                    if (count > countsByYear[record.year]) {
+                        countsByYear[record.year] = count;
+                    }
+                });
+                year2022Count = countsByYear[2022];
+                year2023Count = countsByYear[2023];
+                year2024Count = countsByYear[2024];
+            }
+            totalLoansForGeography = year2022Count + year2023Count + year2024Count;
+            
+            // Build descriptive text
+            const kindText = kind === 'Originations' ? 'Originations' : 'Applications';
+            const purposeText = loanPurpose === 'All Loans' ? 'All Loans' : 'Home Purchase';
+            const bankName = bankMetadata?.bank || 'Frost Bank';
+            
+            let html = '<div class="data-table-container">';
+            html += '<h2 class="table-title">CBSA-Level Analysis - Aggregated Metrics</h2>';
+            html += `<div style="font-size: 1rem; color: var(--dark-blue); font-weight: 600; margin-bottom: 1rem; padding: 0.5rem; background: #f0f4f8; border-left: 4px solid var(--sky-blue); border-radius: 4px;">`;
+            html += `${bankName} - Total ${kindText} (${purposeText}): <span style="color: var(--dark-blue);">${totalLoansForGeography.toLocaleString()}</span> `;
+            html += `(2022: ${year2022Count.toLocaleString()}, 2023: ${year2023Count.toLocaleString()}, 2024: ${year2024Count.toLocaleString()})`;
+            html += `</div>`;
+            html += '<table><thead><tr>';
+            html += '<th>Metric</th>';
+            let colIndex = 1;
+            [2022, 2023, 2024].forEach(year => {
+                if (showDetails) {
+                    html += `<th>${year} Bank %</th>`;
+                    html += `<th>${year} Peer %</th>`;
+                }
+                html += `<th>${year} ${viewMode === 'ratio' ? 'Ratio' : 'Gap'}</th>`;
+                html += `<th>${year} Damages</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            // Sort rows according to TABLE_METRICS_ORDER
+            const sortedRows = Object.values(pivoted)
+                .filter(row => row.metric !== 'Total' && hasValidMetricData(row))
+                .sort((a, b) => {
+                    const indexA = TABLE_METRICS_ORDER.indexOf(a.metric);
+                    const indexB = TABLE_METRICS_ORDER.indexOf(b.metric);
+                    // If metric not in TABLE_METRICS_ORDER, put it at the end
+                    if (indexA === -1) return 1;
+                    if (indexB === -1) return -1;
+                    return indexA - indexB;
+                });
+            
+            sortedRows.forEach(row => {
+                html += `<tr class="clickable" onclick="selectCBSA('${selectedState}', '${selectedCBSA}')">`;
+                html += `<td><strong>${row.metric}</strong></td>`;
+                
+                // Year columns - show Bank %, Peer %, Ratio/Gap, and Damages for each year
+                [2022, 2023, 2024].forEach(year => {
+                    const yearData = row[`year${year}`];
+                    if (showDetails) {
+                        // Bank Share
+                        html += `<td>${yearData.bankShare !== null ? formatPercent(yearData.bankShare) : '—'}</td>`;
+                        // Peer Share
+                        html += `<td>${yearData.peerShare !== null ? formatPercent(yearData.peerShare) : '—'}</td>`;
+                    }
+                    // Ratio/Gap
+                    const value = viewMode === 'ratio' ? yearData.ratio : yearData.gap;
+                    const displayValue = viewMode === 'ratio' ? formatRatio(value) : formatGap(value);
+                    // Color: red for negative/adverse, #2fade3 for positive
+                    // For ratio: > 1 is bad (negative/adverse), < 1 is good (positive)
+                    // For gap: < 0 is negative (adverse), > 0 is positive
+                    let valueColorClass = '';
+                    if (value !== null && value !== undefined) {
+                        if (viewMode === 'ratio') {
+                            // Ratio: > 1 is bad (negative/adverse), < 1 is good (positive)
+                            if (value > 1) {
+                                valueColorClass = 'value-negative';
+                            } else if (value < 1) {
+                                valueColorClass = 'value-positive';
+                            }
+                        } else {
+                            // Gap: < 0 is negative/adverse, > 0 is positive
+                            if (value < 0) {
+                                valueColorClass = 'value-negative';
+                            } else if (value > 0) {
+                                valueColorClass = 'value-positive';
+                            }
+                        }
+                    }
+                    // No background colors - only use text colors for both ratio and gap views
+                    html += `<td><span class="ratio-cell ${valueColorClass}">${displayValue}</span></td>`;
+                    // Damages - show only when adverse:
+                    //   - In ratio view: ratio > 1 (bad)
+                    //   - In gap view: gap < 0 (adverse)
+                    const gapValue = yearData.gap;
+                    const ratioValue = yearData.ratio;
+                    let damagesValue = null;
+                    if (viewMode === 'ratio') {
+                        // For ratio view: show damages only if ratio > 1 (adverse)
+                        damagesValue = (ratioValue !== null && ratioValue !== undefined && ratioValue > 1) ? yearData.damages : null;
+                    } else {
+                        // For gap view: show damages only if gap < 0 (adverse)
+                        damagesValue = (gapValue !== null && gapValue !== undefined && gapValue < 0) ? yearData.damages : null;
+                    }
+                    html += `<td>${formatCurrency(damagesValue)}</td>`;
+                });
+                
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('content').innerHTML = html;
+
+            // Show CBSA switcher
+            if (availableCBSAs.length > 1) {
+                let switcherHtml = '<div class="switcher-section">';
+                switcherHtml += '<span class="switcher-label">Switch CBSA:</span>';
+                switcherHtml += '<div class="switcher-buttons">';
+                availableCBSAs.forEach(cbsa => {
+                    const isSelected = selectedCBSA === cbsa;
+                    switcherHtml += `<button class="switcher-button ${isSelected ? 'active' : ''}" onclick="selectCBSA('${selectedState}', '${cbsa}')">${cbsa}</button>`;
+                });
+                switcherHtml += '</div></div>';
+                document.getElementById('switcherSection').innerHTML = switcherHtml;
+                document.getElementById('switcherSection').style.display = 'block';
+            } else {
+                document.getElementById('switcherSection').style.display = 'none';
+            }
+        }
+
+        // Render county view with aggregated county-level metrics
+        function renderCountyView(data) {
+            // Aggregate to county level
+            const countyAggregated = aggregateToCountyLevel(data);
+            const availableCounties = getUniqueValues(data.filter(r => r.state === selectedState && r.cbsa === selectedCBSA), 'county');
+            
+            // Pivot by metric with years as columns (aggregate across loan purposes)
+            const pivoted = {};
+            
+            countyAggregated.forEach(item => {
+                // Only include if matches selected county (must have a selected county)
+                if (!selectedCounty || item.county !== selectedCounty) return;
+                if (item.state !== selectedState) return;
+                if (selectedCBSA && item.cbsa !== selectedCBSA) return;
+                
+                // For County view, aggregate by metric only (no county in key since we're showing one county)
+                const key = `${item.metric}`;
+                
+                if (!pivoted[key]) {
+                    pivoted[key] = {
+                        metric: item.metric,
+                        year2022: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2023: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2024: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null }
+                    };
+                }
+                
+                const yearKey = `year${item.year}`;
+                // Aggregate: use weighted average if multiple loan purposes exist
+                if (pivoted[key][yearKey].ratio === null) {
+                    pivoted[key][yearKey].ratio = item.avgRatio;
+                    pivoted[key][yearKey].gap = item.avgGap;
+                    pivoted[key][yearKey].bankShare = item.avgBankShare;
+                    pivoted[key][yearKey].peerShare = item.avgPeerShare;
+                    pivoted[key][yearKey].loans = item.totalBankLoans || 0;
+                    // Use damages from aggregated data - if gap is negative OR ratio > 1 (adverse)
+                    // Damages are the same regardless of view mode
+                    const isAdverse = (item.avgGap !== null && item.avgGap !== undefined && item.avgGap < 0) ||
+                                     (item.avgRatio !== null && item.avgRatio !== undefined && item.avgRatio > 1);
+                    if (isAdverse) {
+                        if (item.totalDamages !== null && item.totalDamages !== undefined) {
+                            pivoted[key][yearKey].damages = item.totalDamages;
+                        } else {
+                            const shortfall = calculateShortfall(item.avgGap, item.totalBankLoans);
+                            pivoted[key][yearKey].damages = calculateDamages(shortfall, item.avgLoanAmount);
+                        }
+                    } else {
+                        pivoted[key][yearKey].damages = null;
+                    }
+                } else {
+                    // Combine: weighted average across loan purposes
+                    const totalLoans = pivoted[key][yearKey].loans + (item.totalBankLoans || 0);
+                    if (totalLoans > 0) {
+                        const weight1 = pivoted[key][yearKey].loans / totalLoans;
+                        const weight2 = (item.totalBankLoans || 0) / totalLoans;
+                        if (pivoted[key][yearKey].ratio !== null && item.avgRatio !== null) {
+                            pivoted[key][yearKey].ratio = (pivoted[key][yearKey].ratio * weight1) + (item.avgRatio * weight2);
+                        }
+                        if (pivoted[key][yearKey].gap !== null && item.avgGap !== null) {
+                            pivoted[key][yearKey].gap = (pivoted[key][yearKey].gap * weight1) + (item.avgGap * weight2);
+                        }
+                        if (pivoted[key][yearKey].bankShare !== null && item.avgBankShare !== null) {
+                            pivoted[key][yearKey].bankShare = (pivoted[key][yearKey].bankShare * weight1) + (item.avgBankShare * weight2);
+                        }
+                        if (pivoted[key][yearKey].peerShare !== null && item.avgPeerShare !== null) {
+                            pivoted[key][yearKey].peerShare = (pivoted[key][yearKey].peerShare * weight1) + (item.avgPeerShare * weight2);
+                        }
+                        pivoted[key][yearKey].loans = totalLoans;
+                        // Sum damages (already calculated in processed data) - if gap is negative OR ratio > 1 (adverse)
+                        // Damages are the same regardless of view mode
+                        const isAdverse = (pivoted[key][yearKey].gap !== null && pivoted[key][yearKey].gap !== undefined && pivoted[key][yearKey].gap < 0) ||
+                                          (pivoted[key][yearKey].ratio !== null && pivoted[key][yearKey].ratio !== undefined && pivoted[key][yearKey].ratio > 1);
+                        if (isAdverse) {
+                            if (item.totalDamages !== null && item.totalDamages !== undefined) {
+                                pivoted[key][yearKey].damages = (pivoted[key][yearKey].damages || 0) + item.totalDamages;
+                            } else {
+                                // Recalculate if not available
+                                const shortfall = calculateShortfall(pivoted[key][yearKey].gap, totalLoans);
+                                pivoted[key][yearKey].damages = calculateDamages(shortfall, item.avgLoanAmount);
+                            }
+                        } else {
+                            pivoted[key][yearKey].damages = null;
+                        }
+                    }
+                }
+            });
+
+            // Calculate total loans for the geography
+            // Use the "Total" metric if available (represents all loans in geography)
+            // Otherwise use maximum count across metrics to avoid double-counting
+            let totalLoansForGeography = 0;
+            let year2022Count = 0;
+            let year2023Count = 0;
+            let year2024Count = 0;
+            
+            // Get the filtered data for this geography
+            const filteredData = getFilteredData();
+            const geographyRecords = filteredData.filter(record => 
+                (!selectedState || record.state === selectedState) && 
+                (!selectedCBSA || record.cbsa === selectedCBSA) &&
+                (!selectedCounty || record.county === selectedCounty)
+            );
+            
+            // First, try to use "Total" metric (most accurate)
+            // Sum all "Total" metric records for this geography (they may be at county level)
+            const totalMetricRecords = geographyRecords.filter(r => r.metric === 'Total');
+            if (totalMetricRecords.length > 0) {
+                const countsByYear = { 2022: 0, 2023: 0, 2024: 0 };
+                totalMetricRecords.forEach(record => {
+                    const count = record.bankCount || 0;
+                    // Sum all totals for this year (not max, since these are county-level totals)
+                    countsByYear[record.year] += count;
+                });
+                year2022Count = countsByYear[2022];
+                year2023Count = countsByYear[2023];
+                year2024Count = countsByYear[2024];
+            } else {
+                // Fallback: use maximum count across all metrics for each year
+                const countsByYear = { 2022: 0, 2023: 0, 2024: 0 };
+                geographyRecords.forEach(record => {
+                    const count = record.bankCount || 0;
+                    if (count > countsByYear[record.year]) {
+                        countsByYear[record.year] = count;
+                    }
+                });
+                year2022Count = countsByYear[2022];
+                year2023Count = countsByYear[2023];
+                year2024Count = countsByYear[2024];
+            }
+            totalLoansForGeography = year2022Count + year2023Count + year2024Count;
+            
+            // Build descriptive text
+            const kindText = kind === 'Originations' ? 'Originations' : 'Applications';
+            const purposeText = loanPurpose === 'All Loans' ? 'All Loans' : 'Home Purchase';
+            const bankName = bankMetadata?.bank || 'Frost Bank';
+
+            let html = '<div class="data-table-container">';
+            html += '<h2 class="table-title">County-Level Analysis - Aggregated Metrics</h2>';
+            html += `<div style="font-size: 1rem; color: var(--dark-blue); font-weight: 600; margin-bottom: 1rem; padding: 0.5rem; background: #f0f4f8; border-left: 4px solid var(--sky-blue); border-radius: 4px;">`;
+            html += `${bankName} - Total ${kindText} (${purposeText}): <span style="color: var(--dark-blue);">${totalLoansForGeography.toLocaleString()}</span> `;
+            html += `(2022: ${year2022Count.toLocaleString()}, 2023: ${year2023Count.toLocaleString()}, 2024: ${year2024Count.toLocaleString()})`;
+            html += `</div>`;
+            html += '<table><thead><tr>';
+            html += '<th>Metric</th>';
+            let colIndex = 1;
+            [2022, 2023, 2024].forEach(year => {
+                if (showDetails) {
+                    html += `<th>${year} Bank %</th>`;
+                    html += `<th>${year} Peer %</th>`;
+                }
+                html += `<th>${year} ${viewMode === 'ratio' ? 'Ratio' : 'Gap'}</th>`;
+                html += `<th>${year} Damages</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            // Sort rows according to TABLE_METRICS_ORDER
+            const sortedRows = Object.values(pivoted)
+                .filter(row => row.metric !== 'Total' && hasValidMetricData(row))
+                .sort((a, b) => {
+                    const indexA = TABLE_METRICS_ORDER.indexOf(a.metric);
+                    const indexB = TABLE_METRICS_ORDER.indexOf(b.metric);
+                    // If metric not in TABLE_METRICS_ORDER, put it at the end
+                    if (indexA === -1) return 1;
+                    if (indexB === -1) return -1;
+                    return indexA - indexB;
+                });
+            
+            sortedRows.forEach(row => {
+                html += `<tr class="clickable">`;
+                html += `<td><strong>${row.metric}</strong></td>`;
+                
+                // Year columns - show Bank %, Peer %, Ratio/Gap, and Damages for each year
+                [2022, 2023, 2024].forEach(year => {
+                    const yearData = row[`year${year}`];
+                    if (showDetails) {
+                        // Bank Share
+                        html += `<td>${yearData.bankShare !== null ? formatPercent(yearData.bankShare) : '—'}</td>`;
+                        // Peer Share
+                        html += `<td>${yearData.peerShare !== null ? formatPercent(yearData.peerShare) : '—'}</td>`;
+                    }
+                    // Ratio/Gap
+                    const value = viewMode === 'ratio' ? yearData.ratio : yearData.gap;
+                    const displayValue = viewMode === 'ratio' ? formatRatio(value) : formatGap(value);
+                    // Color: red for negative/adverse, #2fade3 for positive
+                    // For ratio: > 1 is bad (negative/adverse), < 1 is good (positive)
+                    // For gap: < 0 is negative (adverse), > 0 is positive
+                    let valueColorClass = '';
+                    if (value !== null && value !== undefined) {
+                        if (viewMode === 'ratio') {
+                            // Ratio: > 1 is bad (negative/adverse), < 1 is good (positive)
+                            if (value > 1) {
+                                valueColorClass = 'value-negative';
+                            } else if (value < 1) {
+                                valueColorClass = 'value-positive';
+                            }
+                        } else {
+                            // Gap: < 0 is negative/adverse, > 0 is positive
+                            if (value < 0) {
+                                valueColorClass = 'value-negative';
+                            } else if (value > 0) {
+                                valueColorClass = 'value-positive';
+                            }
+                        }
+                    }
+                    // No background colors - only use text colors for both ratio and gap views
+                    html += `<td><span class="ratio-cell ${valueColorClass}">${displayValue}</span></td>`;
+                    // Damages - show only when adverse:
+                    //   - In ratio view: ratio > 1 (bad)
+                    //   - In gap view: gap < 0 (adverse)
+                    const gapValue = yearData.gap;
+                    const ratioValue = yearData.ratio;
+                    let damagesValue = null;
+                    if (viewMode === 'ratio') {
+                        // For ratio view: show damages only if ratio > 1 (adverse)
+                        damagesValue = (ratioValue !== null && ratioValue !== undefined && ratioValue > 1) ? yearData.damages : null;
+                    } else {
+                        // For gap view: show damages only if gap < 0 (adverse)
+                        damagesValue = (gapValue !== null && gapValue !== undefined && gapValue < 0) ? yearData.damages : null;
+                    }
+                    html += `<td>${formatCurrency(damagesValue)}</td>`;
+                });
+                
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            document.getElementById('content').innerHTML = html;
+
+            // Show county switcher
+            if (availableCounties.length > 1) {
+                let switcherHtml = '<div class="switcher-section">';
+                switcherHtml += '<span class="switcher-label">Switch County:</span>';
+                switcherHtml += '<div class="switcher-buttons">';
+                availableCounties.forEach(county => {
+                    const isSelected = selectedCounty === county;
+                    switcherHtml += `<button class="switcher-button ${isSelected ? 'active' : ''}" onclick="selectCounty('${selectedState}', '${selectedCBSA}', '${county}')">${county}</button>`;
+                });
+                switcherHtml += '</div></div>';
+                document.getElementById('switcherSection').innerHTML = switcherHtml;
+                document.getElementById('switcherSection').style.display = 'block';
+            } else {
+                document.getElementById('switcherSection').style.display = 'none';
+            }
+        }
+
+        // Navigation functions
+        function selectState(state) {
+            selectedState = state;
+            selectedCBSA = null;
+            selectedCounty = null;
+            currentView = 'cbsa';
+            const stateSelect = document.getElementById('stateSelect');
+            if (stateSelect) stateSelect.value = state;
+            setupStateButtons();
+            setupCBSAButtons();
+            setupCountyButtons();
+            renderView();
+        }
+
+        function selectCBSA(state, cbsa) {
+            selectedState = state;
+            selectedCBSA = cbsa;
+            selectedCounty = null;
+            currentView = 'cbsa';
+            const stateSelect = document.getElementById('stateSelect');
+            const cbsaSelect = document.getElementById('cbsaSelect');
+            if (stateSelect) stateSelect.value = state;
+            if (cbsaSelect) cbsaSelect.value = cbsa;
+            setupStateButtons();
+            setupCBSAButtons();
+            setupCountyButtons();
+            renderView();
+        }
+
+        function selectCounty(state, cbsa, county) {
+            selectedState = state;
+            selectedCBSA = cbsa;
+            selectedCounty = county;
+            currentView = 'county';
+            renderView();
+        }
+
+        function navigateToLevel(level) {
+            if (level === 'home') {
+                selectedState = null;
+                selectedCBSA = null;
+                selectedCounty = null;
+                currentView = 'state';
+            setupStateButtons();
+            setupCBSAButtons();
+            setupCountyButtons();
+            renderView();
+            }
+        }
+
+        function updateBreadcrumb() {
+            let html = '<span class="breadcrumb-item" onclick="navigateToLevel(\'home\')">Home</span>';
+            
+            if (selectedState) {
+                html += '<span class="breadcrumb-separator">›</span>';
+                html += `<span class="breadcrumb-item ${!selectedCBSA ? 'active' : ''}" onclick="selectState('${selectedState}')">${selectedState}</span>`;
+            }
+            
+            if (selectedCBSA) {
+                html += '<span class="breadcrumb-separator">›</span>';
+                html += `<span class="breadcrumb-item ${!selectedCounty ? 'active' : ''}" onclick="selectCBSA('${selectedState}', '${selectedCBSA}')">${selectedCBSA}</span>`;
+            }
+            
+            if (selectedCounty) {
+                html += '<span class="breadcrumb-separator">›</span>';
+                html += `<span class="breadcrumb-item active">${selectedCounty}</span>`;
+            }
+            
+            document.getElementById('breadcrumb').innerHTML = html;
+        }
+
+        // Sort table
+        let sortColumn = -1;
+        let sortDirection = 1;
+
+        function sortTable(columnIndex) {
+            const table = document.querySelector('table tbody');
+            if (!table) return;
+
+            const rows = Array.from(table.querySelectorAll('tr'));
+            
+            if (sortColumn === columnIndex) {
+                sortDirection *= -1;
+            } else {
+                sortColumn = columnIndex;
+                sortDirection = 1;
+            }
+
+            rows.sort((a, b) => {
+                const aVal = a.cells[columnIndex].textContent.trim();
+                const bVal = b.cells[columnIndex].textContent.trim();
+                
+                const aNum = parseFloat(aVal.replace(/,/g, ''));
+                const bNum = parseFloat(bVal.replace(/,/g, ''));
+                
+                if (!isNaN(aNum) && !isNaN(bNum)) {
+                    return (aNum - bNum) * sortDirection;
+                }
+                
+                return aVal.localeCompare(bVal) * sortDirection;
+            });
+
+            rows.forEach(row => table.appendChild(row));
+
+            // Update sort indicators
+            document.querySelectorAll('th').forEach((th, i) => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (i === columnIndex) {
+                    th.classList.add(sortDirection === 1 ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
+        // Export to Excel function
+        function exportToExcel() {
+            if (!allData || allData.length === 0) {
+                alert('No data available to export');
+                return;
+            }
+
+            const wb = XLSX.utils.book_new();
+            
+            // Sheet 1: Definitions, Filters, and Limits
+            const definitionsData = [
+                ['Webster Bank - Redlining Analysis Export'],
+                [''],
+                ['Export Date:', new Date().toLocaleString()],
+                [''],
+                ['DEFINITIONS'],
+                ['Metric', 'Definition'],
+                ['MMCT 50%', 'Tracts where Black + Hispanic + White population >= 50%'],
+                ['MMCT 80%', 'Tracts where Black + Hispanic + White population >= 80%'],
+                ['Black+Hispanic Tract 50%', 'Tracts where Black + Hispanic population >= 50%'],
+                ['Black+Hispanic Tract 80%', 'Tracts where Black + Hispanic population >= 80%'],
+                ['Black Tract 50%', 'Tracts where Black population >= 50%'],
+                ['Black Tract 80%', 'Tracts where Black population >= 80%'],
+                ['Hispanic Tract 50%', 'Tracts where Hispanic population >= 50%'],
+                ['Hispanic Tract 80%', 'Tracts where Hispanic population >= 80%'],
+                [''],
+                ['FILTERS & LIMITS'],
+                ['Bank', bankMetadata?.bank || 'Webster Bank'],
+                ['LEI', bankMetadata?.lei || 'WV0OVGBTLUP1XIUJE722'],
+                ['RSSD', bankMetadata?.rssd || '761806'],
+                ['Kind', kind],
+                ['Loan Purpose', loanPurpose],
+                ['View Mode', viewMode],
+                ['Selected Metrics', selectedMetrics.join(', ')],
+                [''],
+                ['CALCULATIONS'],
+                ['Ratio', 'Peer Share / Bank Share (Ratio > 1 = adverse)'],
+                ['Gap', 'Bank Share - Peer Share (Gap < 0 = adverse)'],
+                ['Damages', 'Calculated only for adverse gaps/ratios'],
+                ['Peer Definition', 'Lenders with 50%-200% of subject bank volume in same CBSA/year/loan_purpose_category']
+            ];
+            
+            const wsDefinitions = XLSX.utils.aoa_to_sheet(definitionsData);
+            XLSX.utils.book_append_sheet(wb, wsDefinitions, 'Definitions & Filters');
+            
+            // Get all unique state/CBSA combinations
+            const stateCBSACombos = {};
+            allData.forEach(record => {
+                if (record.state && record.cbsa) {
+                    const key = `${record.state}||${record.cbsa}`;
+                    if (!stateCBSACombos[key]) {
+                        stateCBSACombos[key] = {
+                            state: record.state,
+                            cbsa: record.cbsa
+                        };
+                    }
+                }
+            });
+            
+            // Track used sheet names to avoid duplicates
+            const usedSheetNames = new Set();
+            
+            // Helper function to get unique sheet name
+            function getUniqueSheetName(baseName, suffix) {
+                const maxBaseLength = 25; // Leave room for "_Ratio" (6) or "_Gap" (5) suffix
+                let truncatedBase = baseName.length > maxBaseLength 
+                    ? baseName.substring(0, maxBaseLength) 
+                    : baseName;
+                
+                // Remove invalid Excel sheet name characters: [ ] * ? : / \
+                truncatedBase = truncatedBase.replace(/[\[\]*?:/\\]/g, '_');
+                
+                let fullName = `${truncatedBase}_${suffix}`;
+                let counter = 1;
+                while (usedSheetNames.has(fullName)) {
+                    // If duplicate, try to shorten base name and add counter
+                    const availableLength = 31 - suffix.length - String(counter).length - 1; // -1 for underscore
+                    truncatedBase = baseName.substring(0, Math.min(maxBaseLength, availableLength));
+                    truncatedBase = truncatedBase.replace(/[\[\]*?:/\\]/g, '_');
+                    fullName = `${truncatedBase}_${counter}_${suffix}`;
+                    counter++;
+                }
+                usedSheetNames.add(fullName);
+                return fullName;
+            }
+            
+            // Create ratio and gap sheets for each state/CBSA combination
+            Object.values(stateCBSACombos).forEach(combo => {
+                const { state, cbsa } = combo;
+                const baseName = `${state}_${cbsa}`;
+                
+                // Filter data for this state/CBSA
+                const comboData = allData.filter(r => 
+                    r.state === state && 
+                    r.cbsa === cbsa &&
+                    selectedMetrics.includes(r.metric)
+                );
+                
+                // Get unique counties for this CBSA
+                const counties = [...new Set(comboData.map(r => r.county).filter(c => c))].sort();
+                const years = [2022, 2023, 2024];
+                
+                // Create Ratio sheet with years as columns
+                const ratioHeaders = ['Metric', 'County'];
+                years.forEach(year => {
+                    ratioHeaders.push(`${year} Ratio`, `${year} Bank Share %`, `${year} Peer Share %`, `${year} Bank Count`, `${year} Damages`);
+                });
+                const ratioRows = [ratioHeaders];
+                
+                // Group by metric and county, then pivot by year
+                const ratioDataMap = {};
+                comboData.forEach(record => {
+                    const key = `${record.metric}||${record.county || 'All'}`;
+                    if (!ratioDataMap[key]) {
+                        ratioDataMap[key] = {
+                            metric: record.metric,
+                            county: record.county || 'All',
+                            years: {}
+                        };
+                    }
+                    ratioDataMap[key].years[record.year] = {
+                        bankShare: record.bankShare,
+                        peerShare: record.peerShare,
+                        ratio: record.ratio,
+                        bankCount: record.bankCount,
+                        damages: record.damages
+                    };
+                });
+                
+                // Sort by metric order, then county
+                const sortedRatioData = Object.values(ratioDataMap).sort((a, b) => {
+                    const metricOrder = TABLE_METRICS_ORDER.indexOf(a.metric) - TABLE_METRICS_ORDER.indexOf(b.metric);
+                    if (metricOrder !== 0) return metricOrder;
+                    return (a.county || '').localeCompare(b.county || '');
+                });
+                
+                sortedRatioData.forEach(row => {
+                    const rowData = [row.metric, row.county];
+                    years.forEach(year => {
+                        const yearData = row.years[year];
+                        if (yearData) {
+                            rowData.push(
+                                yearData.ratio !== null && yearData.ratio !== undefined ? yearData.ratio.toFixed(4) : '',
+                                yearData.bankShare !== null && yearData.bankShare !== undefined ? (yearData.bankShare / 100).toFixed(4) : '',
+                                yearData.peerShare !== null && yearData.peerShare !== undefined ? (yearData.peerShare / 100).toFixed(4) : '',
+                                yearData.bankCount || 0,
+                                yearData.damages !== null && yearData.damages !== undefined ? yearData.damages : ''
+                            );
+                        } else {
+                            rowData.push('', '', '', '', '');
+                        }
+                    });
+                    ratioRows.push(rowData);
+                });
+                
+                const wsRatio = XLSX.utils.aoa_to_sheet(ratioRows);
+                const ratioSheetName = getUniqueSheetName(baseName, 'Ratio');
+                XLSX.utils.book_append_sheet(wb, wsRatio, ratioSheetName);
+                
+                // Create Gap sheet with years as columns
+                const gapHeaders = ['Metric', 'County'];
+                years.forEach(year => {
+                    gapHeaders.push(`${year} Gap (pp)`, `${year} Bank Share %`, `${year} Peer Share %`, `${year} Bank Count`, `${year} Damages`);
+                });
+                const gapRows = [gapHeaders];
+                
+                // Group by metric and county, then pivot by year
+                const gapDataMap = {};
+                comboData.forEach(record => {
+                    const key = `${record.metric}||${record.county || 'All'}`;
+                    if (!gapDataMap[key]) {
+                        gapDataMap[key] = {
+                            metric: record.metric,
+                            county: record.county || 'All',
+                            years: {}
+                        };
+                    }
+                    gapDataMap[key].years[record.year] = {
+                        bankShare: record.bankShare,
+                        peerShare: record.peerShare,
+                        gap: record.gap,
+                        bankCount: record.bankCount,
+                        damages: record.damages
+                    };
+                });
+                
+                // Sort by metric order, then county
+                const sortedGapData = Object.values(gapDataMap).sort((a, b) => {
+                    const metricOrder = TABLE_METRICS_ORDER.indexOf(a.metric) - TABLE_METRICS_ORDER.indexOf(b.metric);
+                    if (metricOrder !== 0) return metricOrder;
+                    return (a.county || '').localeCompare(b.county || '');
+                });
+                
+                sortedGapData.forEach(row => {
+                    const rowData = [row.metric, row.county];
+                    years.forEach(year => {
+                        const yearData = row.years[year];
+                        if (yearData) {
+                            rowData.push(
+                                yearData.gap !== null && yearData.gap !== undefined ? yearData.gap.toFixed(2) : '',
+                                yearData.bankShare !== null && yearData.bankShare !== undefined ? (yearData.bankShare / 100).toFixed(4) : '',
+                                yearData.peerShare !== null && yearData.peerShare !== undefined ? (yearData.peerShare / 100).toFixed(4) : '',
+                                yearData.bankCount || 0,
+                                yearData.damages !== null && yearData.damages !== undefined ? yearData.damages : ''
+                            );
+                        } else {
+                            rowData.push('', '', '', '', '');
+                        }
+                    });
+                    gapRows.push(rowData);
+                });
+                
+                const wsGap = XLSX.utils.aoa_to_sheet(gapRows);
+                const gapSheetName = getUniqueSheetName(baseName, 'Gap');
+                XLSX.utils.book_append_sheet(wb, wsGap, gapSheetName);
+            });
+            
+            // Generate filename
+            const timestamp = new Date().toISOString().slice(0, 10);
+            const filename = `Frost_Bank_Redlining_Analysis_${timestamp}.xlsx`;
+            
+            // Write file
+            XLSX.writeFile(wb, filename);
+        }
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>
+
