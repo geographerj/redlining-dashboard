@@ -1628,6 +1628,15 @@
                 console.log('All pivoted keys:', Object.keys(pivoted).filter(k => k.includes('Connecticut')));
             }
             
+            // Debug: Log what rows will be displayed
+            if (selectedState === 'Connecticut') {
+                console.log('Rows to display for Connecticut:', {
+                    totalRows: sortedRows.length,
+                    ctRows: sortedRows.filter(r => r.state === 'Connecticut').length,
+                    allRows: sortedRows.map(r => ({ state: r.state, metric: r.metric, loans2022: r.year2022.loans, loans2023: r.year2023.loans, loans2024: r.year2024.loans }))
+                });
+            }
+            
             sortedRows.forEach(row => {
                 // In state view, rows are not clickable - use dropdown to filter by state
                 // In national view, show just the metric; in state view, show state and metric
