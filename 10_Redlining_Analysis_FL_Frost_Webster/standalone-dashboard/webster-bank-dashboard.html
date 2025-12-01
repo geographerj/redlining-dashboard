@@ -833,9 +833,15 @@
             if (!countySelect || !allData) return;
             
             // Populate County dropdown only when in County view
-            if (currentView === 'county' && selectedState && selectedCBSA) {
-                // Get available counties for selected state/CBSA
-                const countyData = allData.filter(r => r.state === selectedState && r.cbsa === selectedCBSA);
+            if (currentView === 'county' && selectedState) {
+                // Get available counties for selected state (across all CBSAs)
+                // If CBSA is selected, filter by CBSA; otherwise show all counties in the state
+                let countyData;
+                if (selectedCBSA) {
+                    countyData = allData.filter(r => r.state === selectedState && r.cbsa === selectedCBSA);
+                } else {
+                    countyData = allData.filter(r => r.state === selectedState);
+                }
                 const availableCounties = getUniqueValues(countyData, 'county');
                 
                 // Populate County dropdown
@@ -982,31 +988,19 @@
                 }
             } else if (level === 'county') {
                 currentView = 'county';
-                // Keep selectedState and selectedCBSA if available, but clear County
+                // Keep selectedState if available, but clear CBSA and County
+                selectedCBSA = null;
                 selectedCounty = null;
                 // If no state selected, try to get first available state
                 if (!selectedState && allData && allData.length > 0) {
                     const states = getUniqueValues(allData, 'state');
                     if (states.length > 0) {
                         selectedState = states[0];
-                        // Try to get first available CBSA for that state
-                        const cbsas = getUniqueValues(allData.filter(r => r.state === selectedState), 'cbsa');
-                        if (cbsas.length > 0) {
-                            selectedCBSA = cbsas[0];
-                        }
                     }
                 }
-                // If no CBSA selected but we have a state, get first CBSA
-                if (selectedState && !selectedCBSA) {
-                    const stateData = allData.filter(r => r.state === selectedState);
-                    const cbsas = getUniqueValues(stateData, 'cbsa');
-                    if (cbsas.length > 0) {
-                        selectedCBSA = cbsas[0];
-                    }
-                }
-                // Get first county for selected state/CBSA
-                if (selectedState && selectedCBSA) {
-                    const countyData = allData.filter(r => r.state === selectedState && r.cbsa === selectedCBSA);
+                // Get first county for selected state (across all CBSAs)
+                if (selectedState) {
+                    const countyData = allData.filter(r => r.state === selectedState);
                     const counties = getUniqueValues(countyData, 'county');
                     if (counties.length > 0) {
                         selectedCounty = counties[0];
@@ -2198,8 +2192,9 @@
             const pivoted = {};
             
             countyAggregated.forEach(item => {
-                // Only include if matches selected county (must have a selected county)
+                // Only include if matches selected county and state (must have a selected county)
                 if (!selectedCounty || item.county !== selectedCounty) return;
+                if (selectedState && item.state !== selectedState) return;
                 if (item.state !== selectedState) return;
                 if (selectedCBSA && item.cbsa !== selectedCBSA) return;
                 
