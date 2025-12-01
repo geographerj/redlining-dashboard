@@ -790,9 +790,10 @@
                 selectedState = stateValue;
                 selectedCBSA = null;
                 selectedCounty = null;
-                // Stay in state view when selecting a state from dropdown
+                // Force state view when selecting a state from dropdown (don't allow county/CBSA view)
                 currentView = 'state';
             }
+            // Ensure we're in state view and clear any county/CBSA selections
             setupStateButtons();
             setupCBSAButtons();
             setupCountyButtons();
