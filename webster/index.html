@@ -1348,6 +1348,83 @@
             return Object.values(grouped);
         }
 
+        function aggregateToNationalLevel(data) {
+            const grouped = {};
+            
+            data.forEach(record => {
+                // Group by: metric, year (aggregate across all states and loan purposes)
+                const key = `${record.metric}||${record.year}`;
+                
+                if (!grouped[key]) {
+                    grouped[key] = {
+                        metric: record.metric,
+                        year: record.year,
+                        totalBankLoans: 0,
+                        bankShareWeightedSum: 0,
+                        peerShareWeightedSum: 0,
+                        ratioWeightedSum: 0,
+                        gapWeightedSum: 0,
+                        totalWeight: 0,
+                        totalLoanAmount: 0,
+                        loanAmountCount: 0,
+                        totalDamages: 0
+                    };
+                }
+                
+                const group = grouped[key];
+                const loanCount = record.bankCount || 0;
+                group.totalBankLoans += loanCount;
+                
+                // Calculate weighted sums for aggregation
+                // Weight by loan count to get proper national-level averages
+                if (record.bankShare !== null && record.bankShare !== undefined && loanCount > 0) {
+                    group.bankShareWeightedSum += record.bankShare * loanCount;
+                    group.totalWeight += loanCount;
+                }
+                if (record.peerShare !== null && record.peerShare !== undefined && loanCount > 0) {
+                    group.peerShareWeightedSum += record.peerShare * loanCount;
+                }
+                if (record.ratio !== null && record.ratio !== undefined && loanCount > 0) {
+                    group.ratioWeightedSum += record.ratio * loanCount;
+                }
+                if (record.gap !== null && record.gap !== undefined && loanCount > 0) {
+                    group.gapWeightedSum += record.gap * loanCount;
+                }
+                // Aggregate average loan amount (weighted by loan count)
+                if (record.avgLoanAmount !== null && record.avgLoanAmount !== undefined && loanCount > 0) {
+                    group.totalLoanAmount += record.avgLoanAmount * loanCount;
+                    group.loanAmountCount += loanCount;
+                }
+                // Sum damages (already calculated in processed data)
+                if (record.damages !== null && record.damages !== undefined) {
+                    group.totalDamages += record.damages;
+                }
+            });
+            
+            // Calculate weighted averages
+            Object.values(grouped).forEach(group => {
+                if (group.totalWeight > 0) {
+                    group.avgBankShare = group.bankShareWeightedSum / group.totalWeight;
+                    group.avgPeerShare = group.peerShareWeightedSum / group.totalWeight;
+                    group.avgRatio = group.ratioWeightedSum / group.totalWeight;
+                    group.avgGap = group.gapWeightedSum / group.totalWeight;
+                } else {
+                    group.avgBankShare = null;
+                    group.avgPeerShare = null;
+                    group.avgRatio = null;
+                    group.avgGap = null;
+                }
+                // Calculate average loan amount
+                if (group.loanAmountCount > 0) {
+                    group.avgLoanAmount = group.totalLoanAmount / group.loanAmountCount;
+                } else {
+                    group.avgLoanAmount = null;
+                }
+            });
+            
+            return Object.values(grouped);
+        }
+
         // Render state view with aggregated state-level metrics
         function renderStateView(data) {
             // If no state selected, aggregate to national level; otherwise aggregate to state level
