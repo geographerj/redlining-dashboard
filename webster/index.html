@@ -2550,18 +2550,23 @@
             html += `<h2 style="margin-bottom: 1rem;">${selectedMetricForView} - Across All Geographies</h2>`;
             html += `<table class="data-table" id="metricTable">`;
             html += `<thead><tr>`;
-            html += `<th onclick="sortMetricTable(0)">State ↕</th>`;
-            html += `<th onclick="sortMetricTable(1)">CBSA ↕</th>`;
-            html += `<th onclick="sortMetricTable(2)">County ↕</th>`;
+            html += `<th onclick="sortMetricTable(0)" style="cursor: pointer;">State ↕</th>`;
+            html += `<th onclick="sortMetricTable(1)" style="cursor: pointer;">CBSA ↕</th>`;
+            html += `<th onclick="sortMetricTable(2)" style="cursor: pointer;">County ↕</th>`;
             
             // Year columns - show Bank %, Peer %, Ratio/Gap, and Damages for each year
+            let colIndex = 3;
             [2022, 2023, 2024].forEach(year => {
                 if (showDetails) {
-                    html += `<th>${year} Bank %</th>`;
-                    html += `<th>${year} Peer %</th>`;
+                    html += `<th onclick="sortMetricTable(${colIndex})" style="cursor: pointer;">${year} Bank % ↕</th>`;
+                    colIndex++;
+                    html += `<th onclick="sortMetricTable(${colIndex})" style="cursor: pointer;">${year} Peer % ↕</th>`;
+                    colIndex++;
                 }
-                html += `<th>${year} ${viewMode === 'ratio' ? 'Ratio' : 'Gap'}</th>`;
-                html += `<th>${year} Damages</th>`;
+                html += `<th onclick="sortMetricTable(${colIndex})" style="cursor: pointer;">${year} ${viewMode === 'ratio' ? 'Ratio' : 'Gap'} ↕</th>`;
+                colIndex++;
+                html += `<th onclick="sortMetricTable(${colIndex})" style="cursor: pointer;">${year} Damages ↕</th>`;
+                colIndex++;
             });
             
             html += `</tr></thead><tbody>`;
@@ -2634,10 +2639,34 @@
             rows.sort((a, b) => {
                 const aCell = a.cells[columnIndex];
                 const bCell = b.cells[columnIndex];
+                if (!aCell || !bCell) return 0;
+                
                 const aText = aCell.textContent.trim();
                 const bText = bCell.textContent.trim();
                 
-                // Try numeric comparison first
+                // Handle empty/null values
+                if (aText === '—' || aText === 'N/A' || aText === '') {
+                    return 1; // Put empty values at the end
+                }
+                if (bText === '—' || bText === 'N/A' || bText === '') {
+                    return -1; // Put empty values at the end
+                }
+                
+                // Try currency parsing (for damages)
+                const aCurrency = parseFloat(aText.replace(/[^0-9.-]/g, ''));
+                const bCurrency = parseFloat(bText.replace(/[^0-9.-]/g, ''));
+                if (!isNaN(aCurrency) && !isNaN(bCurrency) && (aText.includes('$') || aText.includes(','))) {
+                    return (aCurrency - bCurrency) * metricTableSortDirection;
+                }
+                
+                // Try percentage parsing
+                const aPercent = parseFloat(aText.replace(/[^0-9.-]/g, ''));
+                const bPercent = parseFloat(bText.replace(/[^0-9.-]/g, ''));
+                if (!isNaN(aPercent) && !isNaN(bPercent) && aText.includes('%')) {
+                    return (aPercent - bPercent) * metricTableSortDirection;
+                }
+                
+                // Try numeric comparison (for ratios, gaps, etc.)
                 const aNum = parseFloat(aText.replace(/[^0-9.-]/g, ''));
                 const bNum = parseFloat(bText.replace(/[^0-9.-]/g, ''));
                 if (!isNaN(aNum) && !isNaN(bNum)) {
@@ -2654,10 +2683,11 @@
             // Update header arrows
             const headers = table.querySelectorAll('th');
             headers.forEach((th, idx) => {
+                const baseText = th.textContent.replace(/↕|↑|↓/g, '').trim();
                 if (idx === columnIndex) {
-                    th.textContent = th.textContent.replace(/↕|↑|↓/g, '') + (metricTableSortDirection === 1 ? ' ↑' : ' ↓');
+                    th.textContent = baseText + (metricTableSortDirection === 1 ? ' ↑' : ' ↓');
                 } else {
-                    th.textContent = th.textContent.replace(/↕|↑|↓/g, '') + ' ↕';
+                    th.textContent = baseText + ' ↕';
                 }
             });
         }
