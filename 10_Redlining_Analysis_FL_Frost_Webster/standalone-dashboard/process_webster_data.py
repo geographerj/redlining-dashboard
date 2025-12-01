@@ -35,17 +35,43 @@ CT_CBSA_MAPPING = {
     # Torrington, CT stays the same
 }
 
+# Map Connecticut planning regions to traditional counties
+# Planning regions were introduced in 2024, but we want to use traditional county names
+CT_PLANNING_REGION_TO_COUNTY = {
+    'Greater Bridgeport Planning Region': 'Fairfield County',
+    'Capitol Planning Region': 'Hartford County',
+    'South Central Connecticut Planning Region': 'New Haven County',
+    'Southeastern Connecticut Planning Region': 'New London County',
+    'Naugatuck Valley Planning Region': 'New Haven County',  # Primary county
+    'Lower Connecticut River Valley Planning Region': 'Middlesex County',
+    'Northwest Hills Planning Region': 'Litchfield County',
+    'Northeastern Connecticut Planning Region': 'Tolland County',  # Primary county
+    'Western Connecticut Planning Region': 'Fairfield County',  # Primary county
+}
+
 print("\nNormalizing Connecticut CBSA names...")
-normalized_count = 0
+cbsa_normalized_count = 0
 for record in records:
     if record.get('state') == 'Connecticut' and record.get('cbsa') in CT_CBSA_MAPPING:
         old_cbsa = record['cbsa']
         new_cbsa = CT_CBSA_MAPPING[old_cbsa]
         record['cbsa'] = new_cbsa
-        normalized_count += 1
+        cbsa_normalized_count += 1
 
-if normalized_count > 0:
-    print(f"  Normalized {normalized_count} Connecticut CBSA records")
+if cbsa_normalized_count > 0:
+    print(f"  Normalized {cbsa_normalized_count} Connecticut CBSA records")
+
+print("\nNormalizing Connecticut county names (planning regions → traditional counties)...")
+county_normalized_count = 0
+for record in records:
+    if record.get('state') == 'Connecticut' and record.get('county') in CT_PLANNING_REGION_TO_COUNTY:
+        old_county = record['county']
+        new_county = CT_PLANNING_REGION_TO_COUNTY[old_county]
+        record['county'] = new_county
+        county_normalized_count += 1
+
+if county_normalized_count > 0:
+    print(f"  Normalized {county_normalized_count} Connecticut county records")
 
 # Separate subject and peer records
 subject_records = [r for r in records if r['bank_type'] == 'subject']
