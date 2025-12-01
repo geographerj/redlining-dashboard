@@ -792,7 +792,8 @@
                 selectedState = stateValue;
                 selectedCBSA = null;
                 selectedCounty = null;
-                currentView = 'cbsa';
+                // Stay in state view when selecting a state from dropdown
+                currentView = 'state';
             }
             setupStateButtons();
             setupCBSAButtons();
@@ -1507,7 +1508,8 @@
                 });
             
             sortedRows.forEach(row => {
-                html += `<tr class="clickable" onclick="selectState('${row.state}')">`;
+                // In state view, rows are not clickable - use dropdown to filter by state
+                html += `<tr>`;
                 html += `<td><strong>${row.metric}</strong></td>`;
                 
                 // Year columns - show Bank %, Peer %, Ratio/Gap, and Damages for each year
