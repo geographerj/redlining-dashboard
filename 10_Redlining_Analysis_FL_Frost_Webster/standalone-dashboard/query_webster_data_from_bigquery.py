@@ -71,6 +71,18 @@ WITH state_fips_conversion AS (
         state_code
     FROM (SELECT DISTINCT state_code FROM `{PROJECT_ID}.hmda.hmda` WHERE state_code IS NOT NULL)
 ),
+ct_county_fips_to_name AS (
+    -- Map Connecticut traditional county FIPS codes to county names
+    -- HMDA uses traditional county FIPS codes (001, 003, 005, etc.) even in 2024
+    SELECT '001' as county_fips, 'Fairfield County' as county_name
+    UNION ALL SELECT '003', 'Hartford County'
+    UNION ALL SELECT '005', 'Litchfield County'
+    UNION ALL SELECT '007', 'Middlesex County'
+    UNION ALL SELECT '009', 'New Haven County'
+    UNION ALL SELECT '011', 'New London County'
+    UNION ALL SELECT '013', 'Tolland County'
+    UNION ALL SELECT '015', 'Windham County'
+),
 webster_assessment_areas AS (
     -- Get counties where Webster Bank has branches (assessment areas)
     -- Get ALL years from both sod25 and sod_legacy to capture all counties where Webster Bank has ever had branches
@@ -108,10 +120,18 @@ hmda_with_geoid5 AS (
 ),
 hmda_with_cbsa AS (
     -- Add CBSA codes to HMDA records and filter to assessment areas
+    -- For Connecticut: Use traditional county FIPS from HMDA to get county name
+    -- For other states: Use cbsa_to_county table
     SELECT 
         h.*,
         CAST(c.cbsa_code AS STRING) as cbsa_code,
-        c.County as county_name,
+        -- For Connecticut: Use traditional county name from FIPS mapping
+        -- For other states: Use county name from cbsa_to_county table
+        -- Fallback to cbsa_to_county if Connecticut join doesn't match
+        COALESCE(
+            ct_county.county_name,
+            c.County
+        ) as county_name,
         c.cbsa as cbsa_name,
         SUBSTR(c.geoid5, 1, 2) as state_code_from_cbsa,
         c.State as state_name
@@ -120,6 +140,11 @@ hmda_with_cbsa AS (
         ON LPAD(CAST(h.geoid5 AS STRING), 5, '0') = LPAD(faa.geoid5, 5, '0')
     LEFT JOIN `{PROJECT_ID}.geo.cbsa_to_county` c
         ON LPAD(CAST(h.geoid5 AS STRING), 5, '0') = LPAD(CAST(c.geoid5 AS STRING), 5, '0')
+    -- For Connecticut: Join to get traditional county name from HMDA county_code (traditional FIPS)
+    -- HMDA county_code uses traditional FIPS codes (001, 003, etc.) even in 2024
+    LEFT JOIN ct_county_fips_to_name ct_county
+        ON h.state_code = 'CT'
+        AND LPAD(CAST(SUBSTR(LPAD(CAST(h.county_code AS STRING), 5, '0'), -3) AS STRING), 3, '0') = ct_county.county_fips
 ),
 subject_hmda AS (
     -- For action_taken = '1', create both 'Originations' and 'Applications' records

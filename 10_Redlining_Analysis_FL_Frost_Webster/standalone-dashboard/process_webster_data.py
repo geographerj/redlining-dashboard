@@ -36,7 +36,7 @@ CT_CBSA_MAPPING = {
 }
 
 # Map Connecticut planning regions to traditional counties
-# Planning regions were introduced in 2024, but we want to use traditional county names
+# This is a fallback in case the query join doesn't match (HMDA may use different FIPS codes in 2024)
 CT_PLANNING_REGION_TO_COUNTY = {
     'Greater Bridgeport Planning Region': 'Fairfield County',
     'Capitol Planning Region': 'Hartford County',
