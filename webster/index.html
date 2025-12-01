@@ -1429,7 +1429,32 @@
         function renderStateView(data) {
             // If no state selected, aggregate to national level; otherwise aggregate to state level
             const isNationalView = !selectedState;
+            
+            // Debug: Log data being aggregated for Connecticut
+            if (selectedState === 'Connecticut') {
+                const ctData = data.filter(r => r.state === 'Connecticut');
+                const counties = [...new Set(ctData.map(r => r.county).filter(c => c))];
+                console.log('Connecticut data being aggregated:', {
+                    totalRecords: ctData.length,
+                    counties: counties,
+                    countyCount: counties.length
+                });
+            }
+            
             const aggregated = isNationalView ? aggregateToNationalLevel(data) : aggregateToStateLevel(data);
+            
+            // Debug: Log aggregated results for Connecticut
+            if (selectedState === 'Connecticut') {
+                const ctAggregated = aggregated.filter(a => a.state === 'Connecticut');
+                console.log('Connecticut aggregated results:', {
+                    totalGroups: ctAggregated.length,
+                    sampleGroups: ctAggregated.slice(0, 3).map(g => ({
+                        metric: g.metric,
+                        year: g.year,
+                        loans: g.totalBankLoans
+                    }))
+                });
+            }
             
             // Pivot by metric (and state if state view) with years as columns (aggregate across loan purposes)
             const pivoted = {};
