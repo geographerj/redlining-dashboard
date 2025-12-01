@@ -712,20 +712,11 @@
             gray: '#818390'
         };
 
-        // Load JSON data
-        async function loadData() {
+        // Load JSON data (embedded)
+        function loadData() {
             try {
-                // Try embedded data first, then fetch
-                let data;
-                if (typeof EMBEDDED_DATA !== 'undefined') {
-                    data = EMBEDDED_DATA;
-                } else {
-                    const response = await fetch('data/frost-bank-data.json');
-                    if (!response.ok) {
-                        throw new Error('Failed to load data file. Make sure data/frost-bank-data.json exists.');
-                    }
-                    data = await response.json();
-                }
+                // Use embedded data
+                const data = EMBEDDED_DATA;
                 allData = data.records || [];
                 bankMetadata = data.metadata || {};
                 
@@ -749,7 +740,7 @@
                 document.getElementById('content').innerHTML = `
                     <div class="error">
                         <strong>Error loading data:</strong> ${error.message}<br>
-                        <small>Please ensure the data files are in the 'data' folder. Run generate_data.py to create them.</small>
+                        <small>Data should be embedded in this file.</small>
                     </div>
                 `;
             }
@@ -2370,7 +2361,7 @@
             }
         }
         
-        // Render metric view - shows selected metric across all geographies
+        // Render metric view - shows selected metric across all geographies with years as columns
         function renderMetricView(data) {
             if (!selectedMetricForView) {
                 document.getElementById('content').innerHTML = `
@@ -2395,38 +2386,47 @@
                 return;
             }
             
-            // Group by geography (state, cbsa, county) and year
-            const grouped = {};
+            // Group by geography (state, cbsa, county) and pivot years into columns
+            const pivoted = {};
             metricData.forEach(record => {
-                const key = `${record.state}||${record.cbsa || 'N/A'}||${record.county || 'N/A'}||${record.year}`;
-                if (!grouped[key]) {
-                    grouped[key] = {
+                const key = `${record.state}||${record.cbsa || 'N/A'}||${record.county || 'N/A'}`;
+                
+                if (!pivoted[key]) {
+                    pivoted[key] = {
                         state: record.state,
                         cbsa: record.cbsa || 'N/A',
                         county: record.county || 'N/A',
-                        year: record.year,
-                        ratio: record.ratio,
-                        gap: record.gap,
-                        bankShare: record.bankShare,
-                        peerShare: record.peerShare,
-                        loans: record.bankCount || 0,
-                        damages: record.damages
+                        year2022: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2023: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null },
+                        year2024: { ratio: null, gap: null, bankShare: null, peerShare: null, loans: 0, damages: null }
                     };
+                }
+                
+                const yearKey = `year${record.year}`;
+                if (pivoted[key][yearKey]) {
+                    pivoted[key][yearKey].ratio = record.ratio;
+                    pivoted[key][yearKey].gap = record.gap;
+                    pivoted[key][yearKey].bankShare = record.bankShare;
+                    pivoted[key][yearKey].peerShare = record.peerShare;
+                    pivoted[key][yearKey].loans = record.bankCount || 0;
+                    // Show damages if adverse (ratio > 1 OR gap < 0)
+                    const isAdverse = (record.ratio !== null && record.ratio !== undefined && record.ratio > 1) ||
+                                     (record.gap !== null && record.gap !== undefined && record.gap < 0);
+                    pivoted[key][yearKey].damages = isAdverse ? record.damages : null;
                 }
             });
             
             // Convert to array and sort
-            let rows = Object.values(grouped);
+            let rows = Object.values(pivoted);
             
-            // Sort by state, then CBSA, then county, then year
+            // Sort by state, then CBSA, then county
             rows.sort((a, b) => {
                 if (a.state !== b.state) return a.state.localeCompare(b.state);
                 if (a.cbsa !== b.cbsa) return (a.cbsa || '').localeCompare(b.cbsa || '');
-                if (a.county !== b.county) return (a.county || '').localeCompare(b.county || '');
-                return a.year - b.year;
+                return (a.county || '').localeCompare(b.county || '');
             });
             
-            // Build table
+            // Build table with years as columns
             let html = `<div class="table-container">`;
             html += `<h2 style="margin-bottom: 1rem;">${selectedMetricForView} - Across All Geographies</h2>`;
             html += `<table class="data-table" id="metricTable">`;
@@ -2434,15 +2434,17 @@
             html += `<th onclick="sortMetricTable(0)">State ↕</th>`;
             html += `<th onclick="sortMetricTable(1)">CBSA ↕</th>`;
             html += `<th onclick="sortMetricTable(2)">County ↕</th>`;
-            html += `<th onclick="sortMetricTable(3)">Year ↕</th>`;
-            if (showDetails) {
-                html += `<th onclick="sortMetricTable(4)">Bank Share ↕</th>`;
-                html += `<th onclick="sortMetricTable(5)">Peer Share ↕</th>`;
-            }
-            html += `<th onclick="sortMetricTable(${showDetails ? 6 : 4})">Ratio ↕</th>`;
-            html += `<th onclick="sortMetricTable(${showDetails ? 7 : 5})">Gap ↕</th>`;
-            html += `<th onclick="sortMetricTable(${showDetails ? 8 : 6})">Loans ↕</th>`;
-            html += `<th onclick="sortMetricTable(${showDetails ? 9 : 7})">Damages ↕</th>`;
+            
+            // Year columns - show Bank %, Peer %, Ratio/Gap, and Damages for each year
+            [2022, 2023, 2024].forEach(year => {
+                if (showDetails) {
+                    html += `<th>${year} Bank %</th>`;
+                    html += `<th>${year} Peer %</th>`;
+                }
+                html += `<th>${year} ${viewMode === 'ratio' ? 'Ratio' : 'Gap'}</th>`;
+                html += `<th>${year} Damages</th>`;
+            });
+            
             html += `</tr></thead><tbody>`;
             
             rows.forEach(row => {
@@ -2450,26 +2452,40 @@
                 html += `<td>${row.state}</td>`;
                 html += `<td>${row.cbsa}</td>`;
                 html += `<td>${row.county}</td>`;
-                html += `<td>${row.year}</td>`;
-                if (showDetails) {
-                    html += `<td>${row.bankShare !== null ? formatPercent(row.bankShare) : '—'}</td>`;
-                    html += `<td>${row.peerShare !== null ? formatPercent(row.peerShare) : '—'}</td>`;
-                }
-                // Ratio with color
-                const ratioColorClass = row.ratio !== null && row.ratio !== undefined 
-                    ? (row.ratio > 1 ? 'value-negative' : row.ratio < 1 ? 'value-positive' : '')
-                    : '';
-                html += `<td><span class="ratio-cell ${ratioColorClass}">${formatRatio(row.ratio)}</span></td>`;
-                // Gap with color
-                const gapColorClass = row.gap !== null && row.gap !== undefined 
-                    ? (row.gap < 0 ? 'value-negative' : row.gap > 0 ? 'value-positive' : '')
-                    : '';
-                html += `<td><span class="ratio-cell ${gapColorClass}">${formatGap(row.gap)}</span></td>`;
-                html += `<td>${row.loans.toLocaleString()}</td>`;
-                // Show damages if adverse (ratio > 1 OR gap < 0)
-                const isAdverse = (row.ratio !== null && row.ratio !== undefined && row.ratio > 1) ||
-                                 (row.gap !== null && row.gap !== undefined && row.gap < 0);
-                html += `<td>${isAdverse ? formatCurrency(row.damages) : '—'}</td>`;
+                
+                // Year columns
+                [2022, 2023, 2024].forEach(year => {
+                    const yearData = row[`year${year}`];
+                    if (showDetails) {
+                        html += `<td>${yearData.bankShare !== null ? formatPercent(yearData.bankShare) : '—'}</td>`;
+                        html += `<td>${yearData.peerShare !== null ? formatPercent(yearData.peerShare) : '—'}</td>`;
+                    }
+                    // Ratio/Gap with color
+                    const value = viewMode === 'ratio' ? yearData.ratio : yearData.gap;
+                    const displayValue = viewMode === 'ratio' ? formatRatio(value) : formatGap(value);
+                    let valueColorClass = '';
+                    if (value !== null && value !== undefined) {
+                        if (viewMode === 'ratio') {
+                            if (value > 1) valueColorClass = 'value-negative';
+                            else if (value < 1) valueColorClass = 'value-positive';
+                        } else {
+                            if (value < 0) valueColorClass = 'value-negative';
+                            else if (value > 0) valueColorClass = 'value-positive';
+                        }
+                    }
+                    html += `<td><span class="ratio-cell ${valueColorClass}">${displayValue}</span></td>`;
+                    // Damages - show only when adverse
+                    const gapValue = yearData.gap;
+                    const ratioValue = yearData.ratio;
+                    let damagesValue = null;
+                    if (viewMode === 'ratio') {
+                        damagesValue = (ratioValue !== null && ratioValue !== undefined && ratioValue > 1) ? yearData.damages : null;
+                    } else {
+                        damagesValue = (gapValue !== null && gapValue !== undefined && gapValue < 0) ? yearData.damages : null;
+                    }
+                    html += `<td>${formatCurrency(damagesValue)}</td>`;
+                });
+                
                 html += `</tr>`;
             });
             
