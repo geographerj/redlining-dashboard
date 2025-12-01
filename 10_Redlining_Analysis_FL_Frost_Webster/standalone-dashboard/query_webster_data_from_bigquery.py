@@ -85,21 +85,6 @@ webster_assessment_areas AS (
     FROM `{PROJECT_ID}.branches.sod_legacy`
     WHERE CAST(rssd AS STRING) = '{WEBSTER_RSSD}' 
         AND geoid5 IS NOT NULL
-    
-    UNION DISTINCT
-    
-    -- Include ALL Connecticut counties where Webster Bank has HMDA activity
-    -- Webster Bank is headquartered in Stamford, CT, so include all CT counties with activity
-    SELECT DISTINCT 
-        CONCAT(
-            '09',  -- Connecticut FIPS code
-            LPAD(CAST(SUBSTR(LPAD(CAST(h.county_code AS STRING), 5, '0'), -3) AS STRING), 3, '0')
-        ) as geoid5
-    FROM `{PROJECT_ID}.hmda.hmda` h
-    WHERE h.lei = '{WEBSTER_LEI}'
-        AND h.state_code = 'CT'
-        AND h.activity_year IN ('2022', '2023', '2024')
-        AND h.county_code IS NOT NULL
 ),
 hmda_with_geoid5 AS (
     SELECT 
@@ -299,9 +284,37 @@ peer_hmda_raw AS (
     WHERE h.action_taken IN ('1', '2', '3', '4', '5')
 ),
 census_demographics AS (
+    -- Get census tract demographics with redlining metric flags
+    -- For Connecticut: Use census_legacy (traditional county FIPS codes like 001 for Fairfield County)
+    -- For other states: Use geo.census (standard format)
     SELECT 
         geoid as census_tract,
         SUBSTR(geoid, 1, 5) as geoid5,
+        total_black,
+        total_hispanic,
+        total_white,
+        total_persons,
+        CASE WHEN SAFE_DIVIDE((total_black + total_hispanic + total_white), total_persons) * 100 >= 50 THEN TRUE ELSE FALSE END as is_mmct_50,
+        CASE WHEN SAFE_DIVIDE(total_black, total_persons) * 100 >= 50 THEN TRUE ELSE FALSE END as is_black_50,
+        CASE WHEN SAFE_DIVIDE(total_hispanic, total_persons) * 100 >= 50 THEN TRUE ELSE FALSE END as is_hispanic_50,
+        CASE WHEN SAFE_DIVIDE((total_black + total_hispanic), total_persons) * 100 >= 50 THEN TRUE ELSE FALSE END as is_black_hispanic_50,
+        CASE WHEN SAFE_DIVIDE((total_black + total_hispanic + total_white), total_persons) * 100 >= 80 THEN TRUE ELSE FALSE END as is_mmct_80,
+        CASE WHEN SAFE_DIVIDE(total_black, total_persons) * 100 >= 80 THEN TRUE ELSE FALSE END as is_black_80,
+        CASE WHEN SAFE_DIVIDE(total_hispanic, total_persons) * 100 >= 80 THEN TRUE ELSE FALSE END as is_hispanic_80,
+        CASE WHEN SAFE_DIVIDE((total_black + total_hispanic), total_persons) * 100 >= 80 THEN TRUE ELSE FALSE END as is_black_hispanic_80
+    FROM `{PROJECT_ID}.geo.census_legacy`
+    WHERE geoid IS NOT NULL
+        AND SUBSTR(geoid, 1, 2) = '09'  -- Connecticut only (traditional county FIPS)
+    
+    UNION ALL
+    
+    SELECT 
+        geoid as census_tract,
+        SUBSTR(geoid, 1, 5) as geoid5,
+        total_black,
+        total_hispanic,
+        total_white,
+        total_persons,
         CASE WHEN SAFE_DIVIDE((total_black + total_hispanic + total_white), total_persons) * 100 >= 50 THEN TRUE ELSE FALSE END as is_mmct_50,
         CASE WHEN SAFE_DIVIDE(total_black, total_persons) * 100 >= 50 THEN TRUE ELSE FALSE END as is_black_50,
         CASE WHEN SAFE_DIVIDE(total_hispanic, total_persons) * 100 >= 50 THEN TRUE ELSE FALSE END as is_hispanic_50,
@@ -312,6 +325,7 @@ census_demographics AS (
         CASE WHEN SAFE_DIVIDE((total_black + total_hispanic), total_persons) * 100 >= 80 THEN TRUE ELSE FALSE END as is_black_hispanic_80
     FROM `{PROJECT_ID}.geo.census`
     WHERE geoid IS NOT NULL
+        AND SUBSTR(geoid, 1, 2) != '09'  -- All other states (standard format)
 ),
 subject_with_metrics AS (
     SELECT 
